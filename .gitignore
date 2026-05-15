@@ -1,0 +1,46 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Android / Capacitor local artifacts
+android/.gradle/
+android/.idea/
+android/.kotlin/
+android/build/
+android/bin/
+android/gen/
+android/out/
+android/captures/
+android/local.properties
+android/**/.cxx
+android/**/.externalNativeBuild
+android/app/build/
+android/capacitor-cordova-android-plugins/build/
+android/app/src/main/assets/public/
+android/**/*.apk
+android/**/*.aab
+android/**/*.ap_
+android/**/*.keystore
+android/**/*.jks
+android/**/*.hprof
