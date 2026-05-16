@@ -44,10 +44,6 @@ function createDefaultCategoryForm(): CategoryFormState {
   }
 }
 
-<<<<<<< HEAD
-function normalizeCategoryType(type: CategoryType): EditableCategoryType {
-  return type === 'income' ? 'income' : 'expense'
-=======
 function handleScreenTouchStart(event: TouchEvent): void {
   if (!event.touches.length) {
     return
@@ -94,7 +90,6 @@ function handleDrawerTouchEnd(event: TouchEvent): void {
   if (deltaX <= -56 && deltaY <= 36) {
     drawerVisible.value = false
   }
->>>>>>> 542dbf31caab0fd391c331b1660cbf2f813891e4
 }
 
 function openEditDialog(categoryId: string): void {
@@ -105,7 +100,7 @@ function openEditDialog(categoryId: string): void {
 
   Object.assign(form, {
     ...category,
-    type: normalizeCategoryType(category.type),
+    type: category.type,
   })
   dialogVisible.value = true
 }
@@ -122,12 +117,8 @@ function submitCategory(): void {
 }
 
 function getCategoryTypeLabel(type: CategoryType): string {
-<<<<<<< HEAD
-  return type === 'income' ? '收入' : '支出'
-=======
   if (type === 'income') return '收入'
   return '支出'
->>>>>>> 542dbf31caab0fd391c331b1660cbf2f813891e4
 }
 
 function buildBackupFileName(): string {
@@ -218,45 +209,6 @@ async function importBackup(event: Event): Promise<void> {
           </div>
         </el-card>
 
-<<<<<<< HEAD
-    <el-card shadow="never">
-      <template #header>
-        <div class="section-title-row">
-          <div>
-            <span class="eyebrow">数据备份</span>
-            <h3>导入与导出</h3>
-          </div>
-        </div>
-      </template>
-      <div class="settings-card">
-        <p>支持导出当前账单、分类和通知记录，也支持从备份文件恢复。</p>
-        <div class="settings-actions">
-          <el-button @click="exportBackup">导出备份</el-button>
-          <el-button @click="triggerImport">导入备份</el-button>
-        </div>
-        <input ref="backupInputRef" style="display: none" type="file" accept="application/json" @change="importBackup" />
-      </div>
-    </el-card>
-
-    <el-card shadow="never">
-      <template #header>
-        <div class="section-title-row">
-          <div>
-            <span class="eyebrow">分类管理</span>
-            <h3>收入 / 支出分类</h3>
-          </div>
-        </div>
-      </template>
-      <div class="category-list">
-        <div v-for="category in categoryStore.sortedCategories" :key="category.id" class="category-item">
-          <div class="category-item__main">
-            <span class="category-item__icon" :style="{ background: `${category.color}22`, color: category.color }">
-              {{ category.icon }}
-            </span>
-            <div>
-              <strong>{{ category.name }}</strong>
-              <small>{{ getCategoryTypeLabel(category.type) }}</small>
-=======
         <el-card shadow="never">
           <template #header>
             <div class="section-title-row">
@@ -281,7 +233,6 @@ async function importBackup(event: Event): Promise<void> {
                 <el-button circle :icon="EditPen" @click="openEditDialog(category.id)" />
                 <el-button text type="danger" @click="categoryStore.deleteCategory(category.id)">删除</el-button>
               </div>
->>>>>>> 542dbf31caab0fd391c331b1660cbf2f813891e4
             </div>
           </div>
         </el-card>

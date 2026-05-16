@@ -216,13 +216,8 @@ a {
 }
 
 .back-page-header__back {
-<<<<<<< HEAD
-  width: 34px;
-  height: 34px;
-=======
   width: 36px;
   height: 36px;
->>>>>>> 542dbf31caab0fd391c331b1660cbf2f813891e4
   flex: none;
   border-radius: 12px;
   border: 1px solid var(--line-soft);
@@ -584,17 +579,8 @@ a {
 .bill-search-strip {
   display: flex;
   align-items: center;
-<<<<<<< HEAD
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--line-soft);
-  background: var(--bg-surface);
-  box-shadow: var(--shadow-panel);
-=======
   gap: 8px;
   padding: 0;
->>>>>>> 542dbf31caab0fd391c331b1660cbf2f813891e4
 }
 
 .bill-search-strip .el-input {

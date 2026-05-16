@@ -9,10 +9,6 @@ export const defaultCategories: Category[] = [
   { id: 'entertainment', name: '娱乐', type: 'expense', icon: '🎬', color: '#ffb238', sortOrder: 6 },
   { id: 'salary', name: '工资', type: 'income', icon: '💼', color: '#2fbf71', sortOrder: 7 },
   { id: 'bonus', name: '奖金', type: 'income', icon: '✨', color: '#16a34a', sortOrder: 8 },
-<<<<<<< HEAD
-  { id: 'other', name: '其他', type: 'expense', icon: '🧾', color: '#8f96b3', sortOrder: 9 },
-=======
   { id: 'other-income', name: '其他收入', type: 'income', icon: '💰', color: '#34c759', sortOrder: 9 },
   { id: 'other', name: '其他', type: 'expense', icon: '🧾', color: '#8f96b3', sortOrder: 10 },
->>>>>>> 542dbf31caab0fd391c331b1660cbf2f813891e4
 ]

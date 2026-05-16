@@ -175,13 +175,6 @@ async function handleShare(targetPackage: string): Promise<void> {
 </script>
 
 <template>
-<<<<<<< HEAD
-  <section class="screen screen--dense">
-    <header class="page-heading">
-      <div>
-        <span class="eyebrow">账单列表</span>
-        <h2>账单检索</h2>
-=======
   <section class="screen">
     <div class="bill-search-panel">
       <div class="bill-search-strip">
@@ -194,7 +187,6 @@ async function handleShare(targetPackage: string): Promise<void> {
         <el-button class="bill-search-strip__more" circle plain aria-label="更多操作" @click="shareActionDrawerVisible = true">
           <el-icon><MoreFilled /></el-icon>
         </el-button>
->>>>>>> 542dbf31caab0fd391c331b1660cbf2f813891e4
       </div>
 
       <div class="bill-quick-filter-bar">
@@ -253,85 +245,10 @@ async function handleShare(targetPackage: string): Promise<void> {
         </el-button>
       </div>
 
-<<<<<<< HEAD
-    <div class="bill-search-strip">
-      <el-input
-        v-model="filters.keyword"
-        :prefix-icon="Search"
-        placeholder="搜索账单描述、编号、通知内容"
-        clearable
-      />
-      <el-button class="bill-search-strip__button" plain @click="filterDrawerVisible = true">
-        <el-icon><Operation /></el-icon>
-        <span>筛选</span>
-      </el-button>
-    </div>
-
-    <div class="bill-quick-filter-bar">
-      <el-dropdown @command="handleCategoryCommand">
-        <button type="button" class="bill-quick-filter-chip" :class="{ 'is-active': !!filters.categoryId }">
-          <span>{{ selectedCategoryLabel }}</span>
-          <el-icon class="bill-quick-filter-chip__icon"><ArrowDown /></el-icon>
-        </button>
-        <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item command="">全部分类</el-dropdown-item>
-            <el-dropdown-item v-for="category in categoryStore.sortedCategories" :key="category.id" :command="category.id">
-              {{ category.name }}
-            </el-dropdown-item>
-          </el-dropdown-menu>
-        </template>
-      </el-dropdown>
-
-      <el-dropdown @command="handleDateCommand">
-        <button
-          type="button"
-          class="bill-quick-filter-chip"
-          :class="{ 'is-active': !!filters.startDate || !!filters.endDate }"
-        >
-          <span>{{ selectedDateLabel }}</span>
-          <el-icon class="bill-quick-filter-chip__icon"><ArrowDown /></el-icon>
-        </button>
-        <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item command="all">全部时间</el-dropdown-item>
-            <el-dropdown-item command="last7">近 7 天</el-dropdown-item>
-            <el-dropdown-item command="last30">近 30 天</el-dropdown-item>
-            <el-dropdown-item command="thisMonth">本月</el-dropdown-item>
-          </el-dropdown-menu>
-        </template>
-      </el-dropdown>
-
-      <el-dropdown @command="handleSortCommand">
-        <button type="button" class="bill-quick-filter-chip" :class="{ 'is-active': filters.sortBy !== 'date_desc' }">
-          <span>{{ selectedSortLabel }}</span>
-          <el-icon class="bill-quick-filter-chip__icon"><ArrowDown /></el-icon>
-        </button>
-        <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item command="date_desc">最新在前</el-dropdown-item>
-            <el-dropdown-item command="date_asc">最早在前</el-dropdown-item>
-            <el-dropdown-item command="amount_desc">金额从高到低</el-dropdown-item>
-            <el-dropdown-item command="amount_asc">金额从低到高</el-dropdown-item>
-          </el-dropdown-menu>
-        </template>
-      </el-dropdown>
-    </div>
-
-    <div class="bill-toolbar-meta">
-      <span class="bill-toolbar-meta__count">{{ billCountText }}</span>
-      <el-button v-if="activeFilterCount" text @click="resetFilters">清空筛选</el-button>
-=======
-      <div class="filter-summary">
-        <div>
-          <span class="eyebrow">筛选概览</span>
-          <p class="filter-summary__text">{{ filterSummary }}</p>
-        </div>
-        <div class="inline-actions">
-          <el-button v-if="activeFilterCount" text @click="resetFilters">清空筛选</el-button>
-        </div>
+      <div class="bill-toolbar-meta">
+        <span class="bill-toolbar-meta__count">{{ billCountText }}</span>
+        <el-button v-if="activeFilterCount" text @click="resetFilters">清空筛选</el-button>
       </div>
->>>>>>> 542dbf31caab0fd391c331b1660cbf2f813891e4
     </div>
 
     <div v-if="visibleBills.length" class="stack-list">
