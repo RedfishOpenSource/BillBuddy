@@ -44,16 +44,14 @@ public class BillNotificationListenerService extends NotificationListenerService
             return;
         }
 
-        CharSequence title = notification.extras.getCharSequence(Notification.EXTRA_TITLE, "");
-        CharSequence text = notification.extras.getCharSequence(Notification.EXTRA_TEXT, "");
+        String safeTitle = extractTitle(notification);
+        String safeText = extractText(notification);
 
-        if ((title == null || title.length() == 0) && (text == null || text.length() == 0)) {
+        if (safeTitle.isEmpty() && safeText.isEmpty()) {
             return;
         }
 
         String receivedAt = formatIsoNow();
-        String safeTitle = title == null ? "" : title.toString();
-        String safeText = text == null ? "" : text.toString();
 
         enqueuePendingNotification(sbn.getPackageName(), safeTitle, safeText, receivedAt);
 
@@ -107,6 +105,68 @@ public class BillNotificationListenerService extends NotificationListenerService
         } catch (JSONException ignored) {
             return new JSONArray();
         }
+    }
+
+    private static String extractTitle(Notification notification) {
+        return firstNonBlank(
+                getExtraText(notification, Notification.EXTRA_TITLE),
+                getExtraText(notification, Notification.EXTRA_TITLE_BIG),
+                getExtraText(notification, Notification.EXTRA_SUB_TEXT)
+        );
+    }
+
+    private static String extractText(Notification notification) {
+        return firstNonBlank(
+                getExtraText(notification, Notification.EXTRA_TEXT),
+                getExtraText(notification, Notification.EXTRA_BIG_TEXT),
+                joinTextLines(notification.extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)),
+                getExtraText(notification, Notification.EXTRA_SUMMARY_TEXT),
+                getExtraText(notification, Notification.EXTRA_SUB_TEXT),
+                getTrimmedText(notification.tickerText)
+        );
+    }
+
+    private static String getExtraText(Notification notification, String key) {
+        return getTrimmedText(notification.extras.getCharSequence(key));
+    }
+
+    private static String getTrimmedText(CharSequence value) {
+        return value == null ? "" : value.toString().trim();
+    }
+
+    private static String joinTextLines(CharSequence[] lines) {
+        if (lines == null || lines.length == 0) {
+            return "";
+        }
+
+        StringBuilder builder = new StringBuilder();
+        for (CharSequence line : lines) {
+            if (line == null) {
+                continue;
+            }
+
+            String text = line.toString().trim();
+            if (text.isEmpty()) {
+                continue;
+            }
+
+            if (builder.length() > 0) {
+                builder.append(' ');
+            }
+            builder.append(text);
+        }
+
+        return builder.toString();
+    }
+
+    private static String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+
+        return "";
     }
 
     private String formatIsoNow() {

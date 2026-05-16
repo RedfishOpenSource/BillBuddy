@@ -1,5 +1,5 @@
 import dayjs from 'dayjs'
-import type { Bill, BillDraftInput, BillImage, BillSource, BillStatus } from '../../types/bill'
+import type { Bill, BillDraftInput, BillImage, BillSource, BillStatus, BillVideo } from '../../types/bill'
 import { clampAmount } from '../../utils/format'
 import { createId } from '../../utils/id'
 import { storageKeys } from './keys'
@@ -8,6 +8,7 @@ import { readCollection, writeCollection } from './storage'
 type LegacyBillRecord = Partial<Bill> & {
   purpose?: unknown
   images?: unknown
+  videos?: unknown
 }
 
 function sortBills(bills: Bill[]): Bill[] {
@@ -62,6 +63,48 @@ function normalizeBillImages(value: unknown): BillImage[] {
     .filter((image): image is BillImage => image !== null)
 }
 
+function normalizeBillVideo(item: unknown, index: number): BillVideo | null {
+  if (!item || typeof item !== 'object') {
+    return null
+  }
+
+  const video = item as Partial<BillVideo>
+  const path = getStringValue(video.path)
+
+  if (!path) {
+    return null
+  }
+
+  return {
+    id: getStringValue(video.id) || createId(`bill-video-${index}`),
+    path,
+    name: getStringValue(video.name) || `账单视频-${index + 1}`,
+    mimeType: getStringValue(video.mimeType) || 'video/mp4',
+    size: Number.isFinite(video.size) ? Number(video.size) : 0,
+    createdAt: getStringValue(video.createdAt) || new Date().toISOString(),
+  }
+}
+
+function normalizeBillVideos(value: unknown): BillVideo[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value
+    .map((item, index) => normalizeBillVideo(item, index))
+    .filter((video): video is BillVideo => video !== null)
+}
+
+function normalizeCategoryId(value: unknown): string {
+  const categoryId = getStringValue(value)
+
+  if (!categoryId || categoryId === 'transfer') {
+    return 'other'
+  }
+
+  return categoryId
+}
+
 function resolveBillDescription(record: LegacyBillRecord): string {
   const description = getTrimmedString(record.description)
 
@@ -78,11 +121,12 @@ export function normalizeBill(record: LegacyBillRecord): Bill {
   return {
     id: getStringValue(record.id) || createId('bill'),
     source: isBillSource(record.source) ? record.source : 'manual',
-    categoryId: getStringValue(record.categoryId) || 'other',
+    categoryId: normalizeCategoryId(record.categoryId),
     amount: clampAmount(Number(record.amount ?? 0)),
     billNo: getStringValue(record.billNo),
     description: resolveBillDescription(record),
     images: normalizeBillImages(record.images),
+    videos: normalizeBillVideos(record.videos),
     billDate: getStringValue(record.billDate) || dayjs().format('YYYY-MM-DD'),
     rawText: getStringValue(record.rawText),
     status: isBillStatus(record.status) ? record.status : 'confirmed',
@@ -113,6 +157,7 @@ export function createBill(input: BillDraftInput & Required<Pick<Bill, 'category
     billNo: input.billNo,
     description: input.description.trim(),
     images: normalizeBillImages(input.images),
+    videos: normalizeBillVideos(input.videos),
     billDate: input.billDate,
     rawText: input.rawText ?? '',
     status: 'confirmed',

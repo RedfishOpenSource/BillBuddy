@@ -14,12 +14,6 @@ const pendingRecords = computed(() => ingestStore.pendingRecords)
 
 <template>
   <section class="screen">
-    <header class="page-heading">
-      <div>
-        <h2>待确认通知</h2>
-      </div>
-    </header>
-
     <el-alert type="info" :closable="false" show-icon>
       微信和支付宝通知会先进入这里，确认后再写入正式账单。
     </el-alert>

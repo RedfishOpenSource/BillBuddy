@@ -1,19 +1,21 @@
 <script setup lang="ts">
-import { Camera, Delete, Picture, Plus } from '@element-plus/icons-vue'
+import { Camera, Delete, Picture, Plus, VideoCamera } from '@element-plus/icons-vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { computed, reactive, ref, watch } from 'vue'
-import { createBillImagesFromFiles } from '../../services/native/billImageService'
+import { createBillImagesFromFiles, createBillVideosFromFiles } from '../../services/native/billImageService'
 import type { BillFormPayload } from '../../stores/billStore'
-import type { BillSource } from '../../types/bill'
+import type { BillSource, BillVideo } from '../../types/bill'
 import type { Category } from '../../types/category'
-import { resolveBillImageSrc } from '../../utils/billPresentation'
+import { resolveBillImageSrc, resolveBillVideoSrc } from '../../utils/billPresentation'
 
 const imageLimit = 6
+const videoLimit = 1
 
 function createFormState(value: BillFormPayload): BillFormPayload {
   return {
     ...value,
     images: [...(value.images ?? [])],
+    videos: [...(value.videos ?? [])],
   }
 }
 
@@ -30,8 +32,10 @@ const emit = defineEmits<{
 const formRef = ref<FormInstance>()
 const cameraInputRef = ref<HTMLInputElement | null>(null)
 const galleryInputRef = ref<HTMLInputElement | null>(null)
+const videoInputRef = ref<HTMLInputElement | null>(null)
 const pickerVisible = ref(false)
 const pickingImages = ref(false)
+const pickingVideos = ref(false)
 const form = reactive<BillFormPayload>(createFormState(props.initialValue))
 const sourceOptions: Array<{ label: string; value: BillSource }> = [
   { label: '手动', value: 'manual' },
@@ -53,6 +57,7 @@ const rules: FormRules<BillFormPayload> = {
 
 const imagePreviewList = computed(() => form.images.map((image) => resolveBillImageSrc(image)))
 const remainingImageCount = computed(() => Math.max(imageLimit - form.images.length, 0))
+const remainingVideoCount = computed(() => Math.max(videoLimit - (form.videos?.length ?? 0), 0))
 
 function removeImage(imageId: string): void {
   const index = form.images.findIndex((image) => image.id === imageId)
@@ -61,7 +66,18 @@ function removeImage(imageId: string): void {
   }
 }
 
-async function appendImages(images: BillFormPayload['images']): Promise<void> {
+function removeVideo(videoId: string): void {
+  if (!form.videos?.length) {
+    return
+  }
+
+  const index = form.videos.findIndex((video) => video.id === videoId)
+  if (index >= 0) {
+    form.videos.splice(index, 1)
+  }
+}
+
+function appendImages(images: BillFormPayload['images']): void {
   if (!images.length) {
     return
   }
@@ -79,6 +95,24 @@ async function appendImages(images: BillFormPayload['images']): Promise<void> {
   }
 }
 
+function appendVideos(videos: BillVideo[]): void {
+  if (!videos.length) {
+    return
+  }
+
+  if (!remainingVideoCount.value) {
+    ElMessage.warning(`最多上传 ${videoLimit} 段视频`)
+    return
+  }
+
+  const acceptedVideos = videos.slice(0, remainingVideoCount.value)
+  form.videos = [...(form.videos ?? []), ...acceptedVideos]
+
+  if (acceptedVideos.length < videos.length) {
+    ElMessage.warning(`最多上传 ${videoLimit} 段视频，已自动保留前 ${acceptedVideos.length} 段`)
+  }
+}
+
 function openPicker(inputRef: { value: HTMLInputElement | null }): void {
   pickerVisible.value = false
   inputRef.value?.click()
@@ -92,6 +126,10 @@ function openGalleryPicker(): void {
   openPicker(galleryInputRef)
 }
 
+function openVideoPicker(): void {
+  videoInputRef.value?.click()
+}
+
 async function handleFileChange(event: Event): Promise<void> {
   const input = event.target as HTMLInputElement
   const files = input.files
@@ -103,12 +141,32 @@ async function handleFileChange(event: Event): Promise<void> {
   pickingImages.value = true
   try {
     const images = await createBillImagesFromFiles(files)
-    await appendImages(images)
+    appendImages(images)
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '读取图片失败，请稍后重试')
   } finally {
     input.value = ''
     pickingImages.value = false
+  }
+}
+
+async function handleVideoChange(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement
+  const files = input.files
+
+  if (!files?.length) {
+    return
+  }
+
+  pickingVideos.value = true
+  try {
+    const videos = await createBillVideosFromFiles(files)
+    appendVideos(videos)
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '读取视频失败，请稍后重试')
+  } finally {
+    input.value = ''
+    pickingVideos.value = false
   }
 }
 
@@ -118,7 +176,12 @@ async function handleSubmit(): Promise<void> {
     return
   }
 
-  emit('submit', { ...form, images: [...form.images], amount: Number(form.amount) })
+  emit('submit', {
+    ...form,
+    images: [...form.images],
+    videos: [...(form.videos ?? [])],
+    amount: Number(form.amount),
+  })
 }
 </script>
 
@@ -150,7 +213,7 @@ async function handleSubmit(): Promise<void> {
       <el-form-item label="补充描述" class="is-span-2">
         <el-input v-model="form.description" type="textarea" :rows="4" placeholder="可写入门店、场景、备注等信息" />
       </el-form-item>
-      <el-form-item label="票据图片" class="is-span-2">
+      <el-form-item label="商品照片" class="is-span-2">
         <div class="bill-form__image-panel">
           <div class="bill-form__image-toolbar">
             <el-button type="primary" plain :icon="Plus" @click="pickerVisible = true">添加图片</el-button>
@@ -178,9 +241,31 @@ async function handleSubmit(): Promise<void> {
           </div>
         </div>
       </el-form-item>
+      <el-form-item label="商品视频" class="is-span-2">
+        <div class="bill-form__image-panel">
+          <div class="bill-form__image-toolbar">
+            <el-button plain :icon="VideoCamera" :loading="pickingVideos" @click="openVideoPicker">添加视频</el-button>
+            <span class="bill-form__image-hint">已添加 {{ form.videos?.length ?? 0 }} / {{ videoLimit }} 段</span>
+          </div>
+          <div v-if="form.videos?.length" class="bill-form__video-grid">
+            <div v-for="video in form.videos" :key="video.id" class="bill-form__video-card">
+              <video :src="resolveBillVideoSrc(video)" controls preload="metadata" class="bill-form__video" />
+              <button type="button" class="bill-form__image-remove" @click="removeVideo(video.id)">
+                <el-icon><Delete /></el-icon>
+              </button>
+              <span class="bill-form__image-name">{{ video.name }}</span>
+            </div>
+          </div>
+          <div v-else class="bill-form__image-empty">
+            <el-icon><VideoCamera /></el-icon>
+            <span>可添加商品开箱、收据录屏等短视频</span>
+          </div>
+        </div>
+      </el-form-item>
     </div>
     <input ref="cameraInputRef" style="display: none" type="file" accept="image/*" capture="environment" @change="handleFileChange" />
     <input ref="galleryInputRef" style="display: none" type="file" accept="image/*" multiple @change="handleFileChange" />
+    <input ref="videoInputRef" style="display: none" type="file" accept="video/*" capture="environment" @change="handleVideoChange" />
     <el-button type="primary" class="bill-form__submit" @click="handleSubmit">
       {{ submitLabel ?? '保存账单' }}
     </el-button>

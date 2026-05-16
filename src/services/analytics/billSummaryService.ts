@@ -5,7 +5,6 @@ import type { Category } from '../../types/category'
 export interface SummaryMetrics {
   income: number
   expense: number
-  transfer: number
   net: number
   count: number
 }
@@ -13,7 +12,7 @@ export interface SummaryMetrics {
 export interface CategorySummaryItem {
   categoryId: string
   name: string
-  type: string
+  type: Category['type']
   color: string
   amount: number
   count: number
@@ -82,29 +81,24 @@ export function sortBills(bills: Bill[], sortBy: BillSort): Bill[] {
 
 export function summarizeBills(bills: Bill[], categories: Category[]): SummaryMetrics {
   const categoryMap = new Map(categories.map((item) => [item.id, item]))
-
-  return bills.reduce<SummaryMetrics>(
-    (summary, bill) => {
+  const summary = bills.reduce<SummaryMetrics>(
+    (currentSummary, bill) => {
       const type = categoryMap.get(bill.categoryId)?.type ?? 'expense'
 
-      switch (type) {
-        case 'income':
-          summary.income += bill.amount
-          break
-        case 'transfer':
-          summary.transfer += bill.amount
-          break
-        default:
-          summary.expense += bill.amount
-          break
+      if (type === 'income') {
+        currentSummary.income += bill.amount
+      } else {
+        currentSummary.expense += bill.amount
       }
 
-      summary.net = summary.income - summary.expense
-      summary.count += 1
-      return summary
+      currentSummary.count += 1
+      return currentSummary
     },
-    { income: 0, expense: 0, transfer: 0, net: 0, count: 0 },
+    { income: 0, expense: 0, net: 0, count: 0 },
   )
+
+  summary.net = summary.income - summary.expense
+  return summary
 }
 
 export function getMonthBills(bills: Bill[], year: number, month: number): Bill[] {

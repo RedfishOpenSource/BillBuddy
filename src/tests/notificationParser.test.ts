@@ -18,6 +18,20 @@ describe('parseNotificationToRecord', () => {
     expect(record.draft?.categoryId).toBe('food')
   })
 
+  it('parses an alipay nfc-style notification into a bill draft', () => {
+    const record = parseNotificationToRecord({
+      packageName: 'com.eg.android.AlipayGphone',
+      title: '付款成功',
+      text: 'NFC支付已完成，金额12.80元，5月12日',
+      receivedAt: '2026-05-12T10:30:00+08:00',
+    })
+
+    expect(record.sourceApp).toBe('alipay')
+    expect(record.parsedStatus).toBe('parsed')
+    expect(record.draft?.amount).toBe(12.8)
+    expect(record.draft?.billDate).toBe('2026-05-12')
+  })
+
   it('marks unsupported sources as ignored', () => {
     const record = parseNotificationToRecord({
       packageName: 'com.example.bank',

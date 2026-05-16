@@ -17,13 +17,6 @@ const summary = computed(() => summarizeBills(monthBills.value, categoryStore.so
 
 <template>
   <section class="screen screen--static">
-    <header class="page-heading">
-      <div>
-        <h2>账单助手</h2>
-        <p>个人账本、通知导入与月度汇总都集中在这里。</p>
-      </div>
-    </header>
-
     <MonthlySummaryCard :label="formatMonthLabel(today.year(), today.month() + 1)" :summary="summary" />
   </section>
 </template>
