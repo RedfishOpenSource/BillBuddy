@@ -9,11 +9,11 @@ import {
   Money,
   Picture,
   Plus,
-  Setting,
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { computed, ref, type Component } from 'vue'
+import { computed, ref, watch, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import SettingsPanelContent from '../components/settings/SettingsPanelContent.vue'
 import { buildVoiceBillDraft } from '../services/entry/voiceBillDraftService'
 import { setPendingNewBillDraft, type PendingNewBillDraft } from '../services/entry/newBillDraftSession'
 import { createBillImagesFromFiles, createBillVideosFromFiles } from '../services/native/billImageService'
@@ -41,44 +41,60 @@ const tabs: AppTab[] = [
   { label: '账单', path: '/bills', icon: Money },
   { label: '统计', path: '/stats', icon: DataAnalysis },
   { label: '待确认', path: '/inbox', icon: Bell },
-  { label: '设置', path: '/settings', icon: Setting },
 ]
 
 const leftTabs = tabs.slice(0, 2)
 const rightTabs = tabs.slice(2)
 
 const entryDrawerVisible = ref(false)
+const settingsDrawerVisible = ref(false)
 const handlingEntry = ref(false)
 const handlingSpeech = ref(false)
 const galleryInputRef = ref<HTMLInputElement | null>(null)
 const photoInputRef = ref<HTMLInputElement | null>(null)
 const videoInputRef = ref<HTMLInputElement | null>(null)
 
-let cameraPressTimer: number | null = null
-let cameraLongPressTriggered = false
+const cameraLongPressDelay = 520
+const settingsSwipeThreshold = 56
+const settingsSwipeEdge = 24
+const swipeVerticalTolerance = 36
 
-const currentPath = computed(function (): string {
-  return route.path
-})
+let cameraPressStartedAt = 0
+let activeCameraPointerId: number | null = null
+let shellTouchStartX = 0
+let shellTouchStartY = 0
+let settingsTouchStartX = 0
+let settingsTouchStartY = 0
 
 const activeTabPath = computed(function (): string {
   const matchedTab = tabs.find(function (tab) {
-    return currentPath.value.startsWith(tab.path)
+    return route.path.startsWith(tab.path)
   })
 
   return matchedTab?.path ?? ''
 })
 
-const bodyClass = computed(function (): Record<string, boolean> {
-  return {
-    'app-shell__body': true,
-    'app-shell__body--tight': currentPath.value === '/home',
-  }
+const entryBusy = computed(function (): boolean {
+  return handlingEntry.value || handlingSpeech.value
 })
 
-const entryBusy = computed(() => handlingEntry.value || handlingSpeech.value)
+watch(
+  () => route.query.drawer,
+  (drawer) => {
+    if (drawer !== 'settings') {
+      return
+    }
+
+    settingsDrawerVisible.value = true
+    const nextQuery = { ...route.query }
+    delete nextQuery.drawer
+    void router.replace({ path: route.path, query: nextQuery })
+  },
+  { immediate: true },
+)
 
 function navigateTo(path: string): void {
+  closeSettingsDrawer()
   void router.push(path)
 }
 
@@ -88,14 +104,72 @@ function openEntryDrawer(): void {
 
 function closeEntryDrawer(): void {
   entryDrawerVisible.value = false
-  clearCameraPress()
+  resetCameraPress()
 }
 
-function clearCameraPress(): void {
-  if (cameraPressTimer !== null) {
-    window.clearTimeout(cameraPressTimer)
-    cameraPressTimer = null
+function openSettingsDrawer(): void {
+  settingsDrawerVisible.value = true
+}
+
+function closeSettingsDrawer(): void {
+  settingsDrawerVisible.value = false
+}
+
+function handleShellTouchStart(event: TouchEvent): void {
+  if (!event.touches.length) {
+    return
   }
+
+  const touch = event.touches[0]
+  shellTouchStartX = touch.clientX
+  shellTouchStartY = touch.clientY
+}
+
+function handleShellTouchEnd(event: TouchEvent): void {
+  if (settingsDrawerVisible.value || !event.changedTouches.length) {
+    return
+  }
+
+  const touch = event.changedTouches[0]
+  const deltaX = touch.clientX - shellTouchStartX
+  const deltaY = Math.abs(touch.clientY - shellTouchStartY)
+
+  if (shellTouchStartX > settingsSwipeEdge) {
+    return
+  }
+
+  if (deltaX >= settingsSwipeThreshold && deltaY <= swipeVerticalTolerance && deltaX > deltaY) {
+    openSettingsDrawer()
+  }
+}
+
+function handleSettingsTouchStart(event: TouchEvent): void {
+  if (!event.touches.length) {
+    return
+  }
+
+  const touch = event.touches[0]
+  settingsTouchStartX = touch.clientX
+  settingsTouchStartY = touch.clientY
+}
+
+function handleSettingsTouchEnd(event: TouchEvent): void {
+  if (!settingsDrawerVisible.value || !event.changedTouches.length) {
+    return
+  }
+
+  const touch = event.changedTouches[0]
+  const deltaX = touch.clientX - settingsTouchStartX
+  const deltaY = Math.abs(touch.clientY - settingsTouchStartY)
+
+  if (deltaX <= -settingsSwipeThreshold && deltaY <= swipeVerticalTolerance) {
+    closeSettingsDrawer()
+  }
+}
+
+function resetCameraPress(): void {
+  cameraPressStartedAt = 0
+  activeCameraPointerId = null
 }
 
 async function openNewBillWithDraft(draft: PendingNewBillDraft): Promise<void> {
@@ -229,32 +303,33 @@ async function handleAiEntry(): Promise<void> {
   }
 }
 
-function handleCameraPressStart(): void {
+function handleCameraPressStart(event: PointerEvent): void {
   if (entryBusy.value) {
     return
   }
 
-  clearCameraPress()
-  cameraLongPressTriggered = false
-  cameraPressTimer = window.setTimeout(() => {
-    cameraLongPressTriggered = true
-    void handleVideoEntry()
-  }, 520)
+  activeCameraPointerId = event.pointerId
+  cameraPressStartedAt = Date.now()
 }
 
-function handleCameraPressEnd(): void {
-  clearCameraPress()
-
-  if (!cameraLongPressTriggered) {
-    void handlePhotoEntry()
+async function handleCameraPressEnd(event: PointerEvent): Promise<void> {
+  if (activeCameraPointerId !== event.pointerId || !cameraPressStartedAt) {
+    return
   }
 
-  cameraLongPressTriggered = false
+  const pressDuration = Date.now() - cameraPressStartedAt
+  resetCameraPress()
+
+  if (pressDuration >= cameraLongPressDelay) {
+    await handleVideoEntry()
+    return
+  }
+
+  await handlePhotoEntry()
 }
 
 function handleCameraPressCancel(): void {
-  clearCameraPress()
-  cameraLongPressTriggered = false
+  resetCameraPress()
 }
 
 async function handleGalleryInputChange(event: Event): Promise<void> {
@@ -331,10 +406,26 @@ async function handleVideoInputChange(event: Event): Promise<void> {
 </script>
 
 <template>
-  <div class="app-shell">
-    <main :class="bodyClass">
+  <div class="app-shell" @touchstart.passive="handleShellTouchStart" @touchend.passive="handleShellTouchEnd">
+    <main class="app-shell__body">
       <router-view />
     </main>
+
+    <el-drawer
+      v-model="settingsDrawerVisible"
+      class="settings-drawer-panel"
+      direction="ltr"
+      size="88%"
+      append-to-body
+      :with-header="false"
+      :show-close="false"
+      :close-on-click-modal="true"
+      @closed="closeSettingsDrawer"
+    >
+      <div class="settings-drawer" @touchstart.passive="handleSettingsTouchStart" @touchend.passive="handleSettingsTouchEnd">
+        <SettingsPanelContent />
+      </div>
+    </el-drawer>
 
     <el-card shadow="never" class="tabbar">
       <div class="tabbar__grid" aria-label="主导航">
@@ -344,9 +435,7 @@ async function handleVideoInputChange(event: Event): Promise<void> {
             :key="tab.path"
             class="tabbar__item"
             :class="{ 'is-active': activeTabPath === tab.path }"
-            :type="activeTabPath === tab.path ? 'primary' : undefined"
             text
-            :bg="activeTabPath === tab.path"
             :aria-current="activeTabPath === tab.path ? 'page' : undefined"
             @click="navigateTo(tab.path)"
           >
@@ -365,9 +454,7 @@ async function handleVideoInputChange(event: Event): Promise<void> {
             :key="tab.path"
             class="tabbar__item"
             :class="{ 'is-active': activeTabPath === tab.path }"
-            :type="activeTabPath === tab.path ? 'primary' : undefined"
             text
-            :bg="activeTabPath === tab.path"
             :aria-current="activeTabPath === tab.path ? 'page' : undefined"
             @click="navigateTo(tab.path)"
           >
@@ -399,12 +486,10 @@ async function handleVideoInputChange(event: Event): Promise<void> {
             type="button"
             class="entry-sheet__button"
             :disabled="entryBusy"
-            @mousedown.prevent="handleCameraPressStart"
-            @mouseup.prevent="handleCameraPressEnd"
-            @mouseleave.prevent="handleCameraPressCancel"
-            @touchstart.prevent="handleCameraPressStart"
-            @touchend.prevent="handleCameraPressEnd"
-            @touchcancel.prevent="handleCameraPressCancel"
+            @pointerdown.prevent="handleCameraPressStart"
+            @pointerup.prevent="handleCameraPressEnd"
+            @pointercancel.prevent="handleCameraPressCancel"
+            @pointerleave.prevent="handleCameraPressCancel"
             @keydown.enter.prevent="handlePhotoEntry"
             @keydown.space.prevent="handlePhotoEntry"
           >

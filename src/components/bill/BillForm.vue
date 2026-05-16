@@ -242,10 +242,13 @@ async function handleSubmit(): Promise<void> {
         </div>
       </el-form-item>
       <el-form-item label="商品视频" class="is-span-2">
-        <div class="bill-form__image-panel">
-          <div class="bill-form__image-toolbar">
-            <el-button plain :icon="VideoCamera" :loading="pickingVideos" @click="openVideoPicker">添加视频</el-button>
-            <span class="bill-form__image-hint">已添加 {{ form.videos?.length ?? 0 }} / {{ videoLimit }} 段</span>
+        <div class="bill-form__image-panel bill-form__video-panel">
+          <div class="bill-form__image-toolbar bill-form__video-toolbar">
+            <div class="bill-form__video-meta">
+              <el-button plain :icon="VideoCamera" :loading="pickingVideos" @click="openVideoPicker">添加视频</el-button>
+              <span class="bill-form__image-hint">已添加 {{ form.videos?.length ?? 0 }} / {{ videoLimit }} 段</span>
+            </div>
+            <span class="bill-form__video-badge">支持短视频预览</span>
           </div>
           <div v-if="form.videos?.length" class="bill-form__video-grid">
             <div v-for="video in form.videos" :key="video.id" class="bill-form__video-card">
@@ -256,8 +259,9 @@ async function handleSubmit(): Promise<void> {
               <span class="bill-form__image-name">{{ video.name }}</span>
             </div>
           </div>
-          <div v-else class="bill-form__image-empty">
+          <div v-else class="bill-form__image-empty bill-form__video-empty">
             <el-icon><VideoCamera /></el-icon>
+            <strong>添加商品视频</strong>
             <span>可添加商品开箱、收据录屏等短视频</span>
           </div>
         </div>

@@ -36,8 +36,9 @@ const shareTargets = [
 
 const availableYears = computed(() => getAvailableYears(billStore.bills))
 const selectedYear = ref(dayjs().year())
-const selectedMonth = ref(dayjs().month() + 1)
-const isYearView = computed(() => selectedMonth.value === allMonthsValue)
+const selectedMonth = ref<number | null>(dayjs().month() + 1)
+const effectiveMonth = computed(() => selectedMonth.value ?? allMonthsValue)
+const isYearView = computed(() => effectiveMonth.value === allMonthsValue)
 
 watch(
   availableYears,
@@ -54,7 +55,7 @@ const scopedBills = computed(() => {
     return getYearBills(billStore.bills, selectedYear.value)
   }
 
-  return getMonthBills(billStore.bills, selectedYear.value, selectedMonth.value)
+  return getMonthBills(billStore.bills, selectedYear.value, effectiveMonth.value)
 })
 
 const summary = computed(() => summarizeBills(scopedBills.value, categoryStore.sortedCategories))
@@ -70,14 +71,14 @@ const trend = computed(() => {
     return buildYearlyTrend(billStore.bills, categoryStore.sortedCategories, selectedYear.value)
   }
 
-  return buildMonthlyTrend(billStore.bills, categoryStore.sortedCategories, selectedYear.value, selectedMonth.value)
+  return buildMonthlyTrend(billStore.bills, categoryStore.sortedCategories, selectedYear.value, effectiveMonth.value)
 })
 const summaryLabel = computed(() => {
   if (isYearView.value) {
     return `${selectedYear.value}年`
   }
 
-  return formatMonthLabel(selectedYear.value, selectedMonth.value)
+  return formatMonthLabel(selectedYear.value, effectiveMonth.value)
 })
 const trendEyebrow = computed(() => (isYearView.value ? '年度视图' : '月度视图'))
 const trendTitle = computed(() => (isYearView.value ? '月度趋势' : '每日趋势'))
@@ -92,7 +93,7 @@ async function handleShare(targetPackage: string): Promise<void> {
   shareActionDrawerVisible.value = false
 
   try {
-    const monthLabel = selectedMonth.value === allMonthsValue ? '全年' : selectedMonth.value
+    const monthLabel = effectiveMonth.value === allMonthsValue ? '全年' : effectiveMonth.value
     const file = await prepareStatsShareFile('pdf', `统计汇总-${selectedYear.value}-${monthLabel}`, {
       title: '统计汇总',
       summaryLabel: summaryLabel.value,
@@ -127,11 +128,16 @@ async function handleShare(targetPackage: string): Promise<void> {
       <el-select v-model="selectedYear" class="stats-toolbar__control" placeholder="年份">
         <el-option v-for="year in availableYears" :key="year" :label="`${year}年`" :value="year" />
       </el-select>
-      <el-select v-model="selectedMonth" class="stats-toolbar__control" placeholder="月份">
+      <el-select
+        v-model="selectedMonth"
+        class="stats-toolbar__control"
+        placeholder="月份"
+        clearable
+      >
         <el-option label="全年" :value="allMonthsValue" />
         <el-option v-for="month in 12" :key="month" :label="`${month}月`" :value="month" />
       </el-select>
-      <el-button class="stats-toolbar__more" circle plain aria-label="更多操作" @click="shareActionDrawerVisible = true">
+      <el-button class="toolbar-icon-button stats-toolbar__more" text aria-label="分享方式" @click="shareActionDrawerVisible = true">
         <el-icon><MoreFilled /></el-icon>
       </el-button>
     </div>

@@ -184,7 +184,7 @@ async function handleShare(targetPackage: string): Promise<void> {
           placeholder="搜索账单描述、编号、通知内容"
           clearable
         />
-        <el-button class="bill-search-strip__more" circle plain aria-label="更多操作" @click="shareActionDrawerVisible = true">
+        <el-button class="toolbar-icon-button bill-search-strip__more" text aria-label="分享方式" @click="shareActionDrawerVisible = true">
           <el-icon><MoreFilled /></el-icon>
         </el-button>
       </div>
