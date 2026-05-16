@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus'
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import BackPageHeader from '../components/BackPageHeader.vue'
 import BillForm from '../components/bill/BillForm.vue'
+import { consumePendingNewBillDraft, type PendingNewBillDraft } from '../services/entry/newBillDraftSession'
 import type { BillFormPayload } from '../stores/billStore'
 import { useBillStore } from '../stores/billStore'
 import { useCategoryStore } from '../stores/categoryStore'
@@ -16,8 +17,11 @@ const billStore = useBillStore()
 const categoryStore = useCategoryStore()
 const ingestStore = useIngestStore()
 
+const entryDraft = ref<PendingNewBillDraft | null>(null)
+
 const billId = computed(() => (typeof route.params.id === 'string' ? route.params.id : ''))
 const ingestId = computed(() => (typeof route.query.ingest === 'string' ? route.query.ingest : ''))
+const draftToken = computed(() => (typeof route.query.draft === 'string' ? route.query.draft : ''))
 
 const editingBill = computed(() => billStore.bills.find((bill) => bill.id === billId.value) ?? null)
 const ingestRecord = computed(() => ingestStore.records.find((record) => record.id === ingestId.value) ?? null)
@@ -35,6 +39,19 @@ const pageTitle = computed(() => {
 
 const submitLabel = computed(() => (editingBill.value ? '更新账单' : '确认并保存'))
 
+watch(
+  draftToken,
+  () => {
+    if (billId.value || ingestId.value) {
+      entryDraft.value = null
+      return
+    }
+
+    entryDraft.value = consumePendingNewBillDraft()
+  },
+  { immediate: true },
+)
+
 function getTodayValue(): string {
   return dayjs().format('YYYY-MM-DD')
 }
@@ -49,6 +66,7 @@ const initialValue = computed<BillFormPayload>(() => {
       billNo: editingBill.value.billNo,
       description: editingBill.value.description,
       images: [...editingBill.value.images],
+      videos: [...(editingBill.value.videos ?? [])],
       billDate: editingBill.value.billDate,
       rawText: editingBill.value.rawText,
       status: editingBill.value.status,
@@ -62,9 +80,25 @@ const initialValue = computed<BillFormPayload>(() => {
       amount: ingestRecord.value.draft.amount ?? 0,
       billNo: ingestRecord.value.draft.billNo ?? '',
       description: ingestRecord.value.draft.description ?? '通知草稿账单',
-      images: [],
+      images: [...(ingestRecord.value.draft.images ?? [])],
+      videos: [...(ingestRecord.value.draft.videos ?? [])],
       billDate: ingestRecord.value.draft.billDate ?? getTodayValue(),
       rawText: ingestRecord.value.draft.rawText ?? '',
+      status: 'draft',
+    }
+  }
+
+  if (entryDraft.value) {
+    return {
+      source: entryDraft.value.source ?? 'manual',
+      categoryId: entryDraft.value.categoryId ?? 'other',
+      amount: entryDraft.value.amount ?? 0,
+      billNo: entryDraft.value.billNo ?? '',
+      description: entryDraft.value.description ?? '',
+      images: [...(entryDraft.value.images ?? [])],
+      videos: [...(entryDraft.value.videos ?? [])],
+      billDate: entryDraft.value.billDate ?? getTodayValue(),
+      rawText: entryDraft.value.rawText ?? '',
       status: 'draft',
     }
   }
@@ -76,6 +110,7 @@ const initialValue = computed<BillFormPayload>(() => {
     billNo: '',
     description: '',
     images: [],
+    videos: [],
     billDate: getTodayValue(),
   }
 })

@@ -1,7 +1,7 @@
 import dayjs from 'dayjs'
 import { defineStore } from 'pinia'
 import { createBill, findBill, listBills, removeBill, upsertBill } from '../services/db/billRepository'
-import type { Bill, BillImage, BillSource, BillStatus } from '../types/bill'
+import type { Bill, BillImage, BillSource, BillStatus, BillVideo } from '../types/bill'
 
 export interface BillFormPayload {
   id?: string
@@ -11,6 +11,7 @@ export interface BillFormPayload {
   billNo: string
   description: string
   images: BillImage[]
+  videos?: BillVideo[]
   billDate: string
   rawText?: string
   status?: BillStatus
@@ -22,6 +23,7 @@ function buildUpdatedBill(existing: Bill, payload: BillFormPayload): Bill {
     ...payload,
     amount: Number(payload.amount),
     images: payload.images ?? [],
+    videos: payload.videos ?? [],
     updatedAt: new Date().toISOString(),
     status: payload.status ?? existing.status,
   }
@@ -51,6 +53,7 @@ export const useBillStore = defineStore('bills', {
             billNo: payload.billNo,
             description: payload.description,
             images: payload.images ?? [],
+            videos: payload.videos ?? [],
             billDate: payload.billDate || dayjs().format('YYYY-MM-DD'),
             rawText: payload.rawText,
           })
@@ -74,6 +77,7 @@ export const useBillStore = defineStore('bills', {
           billNo: '手动-001',
           description: '午餐套餐 · 公司附近简餐',
           images: [],
+          videos: [],
           billDate: dayjs().format('YYYY-MM-DD'),
         },
         {
@@ -83,6 +87,7 @@ export const useBillStore = defineStore('bills', {
           billNo: '微信-20260512-01',
           description: '地铁出行 · 通勤',
           images: [],
+          videos: [],
           billDate: dayjs().subtract(1, 'day').format('YYYY-MM-DD'),
           rawText: '微信支付 地铁出行 ￥6.00',
         },
@@ -93,6 +98,7 @@ export const useBillStore = defineStore('bills', {
           billNo: '支出-20260510-03',
           description: '日用品采购 · 洗发水和纸巾',
           images: [],
+          videos: [],
           billDate: dayjs().subtract(2, 'day').format('YYYY-MM-DD'),
           rawText: '支付宝支出 ￥88.60',
         },
@@ -103,6 +109,7 @@ export const useBillStore = defineStore('bills', {
           billNo: '工资-202605',
           description: '5月工资入账',
           images: [],
+          videos: [],
           billDate: dayjs().startOf('month').format('YYYY-MM-DD'),
         },
       ]

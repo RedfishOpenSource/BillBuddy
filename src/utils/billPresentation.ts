@@ -1,5 +1,5 @@
 import { Capacitor } from '@capacitor/core'
-import type { Bill, BillImage } from '../types/bill'
+import type { Bill, BillImage, BillVideo } from '../types/bill'
 import type { Category } from '../types/category'
 import { formatDate, formatSourceLabel } from './format'
 
@@ -7,12 +7,31 @@ type BillDisplayTarget = Pick<Bill, 'description' | 'billNo' | 'billDate' | 'sou
   purpose?: string
 }
 
+type BillFileTarget = Pick<BillImage | BillVideo, 'path'>
+
 function normalizeText(value: string): string {
   return value.replace(/\s+/g, ' ').trim()
 }
 
 function truncateText(value: string, maxLength = 28): string {
   return value.length > maxLength ? `${value.slice(0, maxLength - 1)}…` : value
+}
+
+function resolveBillFileSrc(file: BillFileTarget): string {
+  if (!file.path) {
+    return ''
+  }
+
+  if (
+    file.path.startsWith('data:') ||
+    file.path.startsWith('blob:') ||
+    file.path.startsWith('http://') ||
+    file.path.startsWith('https://')
+  ) {
+    return file.path
+  }
+
+  return Capacitor.convertFileSrc(file.path)
 }
 
 export function getBillDisplayTitle(bill: BillDisplayTarget, category?: Pick<Category, 'name'> | null): string {
@@ -35,20 +54,11 @@ export function getBillDisplayTitle(bill: BillDisplayTarget, category?: Pick<Cat
 }
 
 export function resolveBillImageSrc(image: Pick<BillImage, 'path'>): string {
-  if (!image.path) {
-    return ''
-  }
+  return resolveBillFileSrc(image)
+}
 
-  if (
-    image.path.startsWith('data:') ||
-    image.path.startsWith('blob:') ||
-    image.path.startsWith('http://') ||
-    image.path.startsWith('https://')
-  ) {
-    return image.path
-  }
-
-  return Capacitor.convertFileSrc(image.path)
+export function resolveBillVideoSrc(video: Pick<BillVideo, 'path'>): string {
+  return resolveBillFileSrc(video)
 }
 
 export function getBillImageCountText(images: BillImage[]): string {
@@ -57,4 +67,12 @@ export function getBillImageCountText(images: BillImage[]): string {
   }
 
   return `${images.length} 张图片`
+}
+
+export function getBillVideoCountText(videos: BillVideo[]): string {
+  if (!videos.length) {
+    return '无视频'
+  }
+
+  return `${videos.length} 段视频`
 }

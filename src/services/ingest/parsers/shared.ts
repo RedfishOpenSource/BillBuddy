@@ -9,7 +9,6 @@ const categoryKeywords: Record<string, string[]> = {
   entertainment: ['电影', '游戏', 'KTV', '音乐', '会员'],
   salary: ['工资', '薪资'],
   bonus: ['奖金', '红包', '奖励'],
-  transfer: ['转账', '收款', '提现'],
 }
 
 export function extractAmount(text: string) {

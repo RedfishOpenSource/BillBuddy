@@ -3,18 +3,57 @@ import type { Category } from '../../types/category'
 import { storageKeys } from './keys'
 import { readCollection, writeCollection } from './storage'
 
-export function listCategories() {
-  return readCollection<Category[]>(storageKeys.categories, defaultCategories).sort(
-    (left, right) => left.sortOrder - right.sortOrder,
-  )
+const requiredCategoryIds = new Set(['other-income'])
+
+function normalizeCategories(categories: Category[]): Category[] {
+  const normalizedCategories = categories
+    .filter((category) => category.id !== 'transfer')
+    .map(
+      (category): Category => ({
+        ...category,
+        type: category.type === 'income' ? 'income' : 'expense',
+      }),
+    )
+
+  defaultCategories.forEach((category) => {
+    if (!requiredCategoryIds.has(category.id)) {
+      return
+    }
+
+    const exists = normalizedCategories.some((item) => item.id === category.id)
+    if (!exists) {
+      normalizedCategories.push(category)
+    }
+  })
+
+  return normalizedCategories.sort((left, right) => left.sortOrder - right.sortOrder)
 }
 
-export function saveCategories(categories: Category[]) {
-  writeCollection(storageKeys.categories, categories)
-  return categories
+function hasLegacyTransferCategory(categories: Category[]): boolean {
+  return categories.some((category) => {
+    const legacyCategory = category as unknown as { id?: string; type?: string }
+    return legacyCategory.id === 'transfer' || legacyCategory.type === 'transfer'
+  })
 }
 
-export function ensureCategories() {
+export function listCategories(): Category[] {
+  const categories = readCollection<Category[]>(storageKeys.categories, defaultCategories)
+  const normalized = normalizeCategories(categories)
+
+  if (normalized.length !== categories.length || hasLegacyTransferCategory(categories)) {
+    writeCollection(storageKeys.categories, normalized)
+  }
+
+  return normalized
+}
+
+export function saveCategories(categories: Category[]): Category[] {
+  const normalized = normalizeCategories(categories)
+  writeCollection(storageKeys.categories, normalized)
+  return normalized
+}
+
+export function ensureCategories(): Category[] {
   const categories = listCategories()
 
   if (categories.length > 0) {

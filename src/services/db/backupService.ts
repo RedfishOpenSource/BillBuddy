@@ -1,7 +1,7 @@
-import type { Bill, BillImage } from '../../types/bill'
+import type { Bill, BillImage, BillVideo } from '../../types/bill'
 import type { Category } from '../../types/category'
 import type { IngestRecord } from '../../types/ingest'
-import { resolveBillImageSrc } from '../../utils/billPresentation'
+import { resolveBillImageSrc, resolveBillVideoSrc } from '../../utils/billPresentation'
 import { listBills, saveBills } from './billRepository'
 import { listCategories, saveCategories } from './categoryRepository'
 import { listIngestRecords, saveIngestRecords } from './ingestRepository'
@@ -22,47 +22,46 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(String(reader.result ?? ''))
-    reader.onerror = () => reject(new Error('图片读取失败'))
+    reader.onerror = () => reject(new Error('文件读取失败'))
     reader.readAsDataURL(blob)
   })
 }
 
-async function createPortableImage(image: BillImage): Promise<BillImage> {
-  if (!image.path || image.path.startsWith('data:')) {
-    return image
+async function createPortableFile<T extends BillImage | BillVideo>(file: T, resolvedPath: string): Promise<T> {
+  if (!file.path || file.path.startsWith('data:')) {
+    return file
   }
 
-  const resolvedPath = resolveBillImageSrc(image)
-
   if (!resolvedPath) {
-    return image
+    return file
   }
 
   try {
     const response = await fetch(resolvedPath)
 
     if (!response.ok) {
-      throw new Error('图片获取失败')
+      throw new Error('文件获取失败')
     }
 
     return {
-      ...image,
+      ...file,
       path: await blobToDataUrl(await response.blob()),
     }
   } catch {
-    return image
+    return file
   }
 }
 
 async function createPortableBill(bill: Bill): Promise<Bill> {
   return {
     ...bill,
-    images: await Promise.all((bill.images ?? []).map(createPortableImage)),
+    images: await Promise.all((bill.images ?? []).map((image) => createPortableFile(image, resolveBillImageSrc(image)))),
+    videos: await Promise.all((bill.videos ?? []).map((video) => createPortableFile(video, resolveBillVideoSrc(video)))),
   }
 }
 
 async function createPortableIngestRecord(record: IngestRecord): Promise<IngestRecord> {
-  if (!record.draft?.images?.length) {
+  if (!record.draft?.images?.length && !record.draft?.videos?.length) {
     return record
   }
 
@@ -70,7 +69,8 @@ async function createPortableIngestRecord(record: IngestRecord): Promise<IngestR
     ...record,
     draft: {
       ...record.draft,
-      images: await Promise.all(record.draft.images.map(createPortableImage)),
+      images: await Promise.all((record.draft?.images ?? []).map((image) => createPortableFile(image, resolveBillImageSrc(image)))),
+      videos: await Promise.all((record.draft?.videos ?? []).map((video) => createPortableFile(video, resolveBillVideoSrc(video)))),
     },
   }
 }

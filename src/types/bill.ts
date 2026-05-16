@@ -11,6 +11,15 @@ export interface BillImage {
   createdAt: string
 }
 
+export interface BillVideo {
+  id: string
+  path: string
+  name: string
+  mimeType: string
+  size: number
+  createdAt: string
+}
+
 export interface Bill {
   id: string
   source: BillSource
@@ -19,6 +28,7 @@ export interface Bill {
   billNo: string
   description: string
   images: BillImage[]
+  videos?: BillVideo[]
   billDate: string
   rawText: string
   status: BillStatus
@@ -33,6 +43,7 @@ export interface BillDraftInput {
   billNo?: string
   description?: string
   images?: BillImage[]
+  videos?: BillVideo[]
   billDate?: string
   rawText?: string
 }

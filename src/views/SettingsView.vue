@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { EditPen, Notification } from '@element-plus/icons-vue'
+import { EditPen } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { onMounted, reactive, ref } from 'vue'
+import { reactive, ref } from 'vue'
 import { downloadTextFile } from '../services/analytics/shareReportService'
 import { createBackupPayload, applyBackupPayload, parseBackupPayload } from '../services/db/backupService'
 import { shareFile } from '../services/native/shareBridge'
@@ -22,13 +22,15 @@ const billStore = useBillStore()
 const categoryStore = useCategoryStore()
 const ingestStore = useIngestStore()
 
+const drawerVisible = ref(true)
 const dialogVisible = ref(false)
 const backupInputRef = ref<HTMLInputElement | null>(null)
 const form = reactive<CategoryFormState>(createDefaultCategoryForm())
 
-onMounted(() => {
-  void ingestStore.refreshListenerStatus()
-})
+let screenTouchStartX = 0
+let screenTouchStartY = 0
+let drawerTouchStartX = 0
+let drawerTouchStartY = 0
 
 function createDefaultCategoryForm(): CategoryFormState {
   return {
@@ -37,6 +39,54 @@ function createDefaultCategoryForm(): CategoryFormState {
     type: 'expense',
     icon: '🧾',
     color: '#8f96b3',
+  }
+}
+
+function handleScreenTouchStart(event: TouchEvent): void {
+  if (!event.touches.length) {
+    return
+  }
+
+  const touch = event.touches[0]
+  screenTouchStartX = touch.clientX
+  screenTouchStartY = touch.clientY
+}
+
+function handleScreenTouchEnd(event: TouchEvent): void {
+  if (drawerVisible.value || !event.changedTouches.length) {
+    return
+  }
+
+  const touch = event.changedTouches[0]
+  const deltaX = touch.clientX - screenTouchStartX
+  const deltaY = Math.abs(touch.clientY - screenTouchStartY)
+
+  if (deltaX >= 56 && deltaY <= 36) {
+    drawerVisible.value = true
+  }
+}
+
+function handleDrawerTouchStart(event: TouchEvent): void {
+  if (!event.touches.length) {
+    return
+  }
+
+  const touch = event.touches[0]
+  drawerTouchStartX = touch.clientX
+  drawerTouchStartY = touch.clientY
+}
+
+function handleDrawerTouchEnd(event: TouchEvent): void {
+  if (!drawerVisible.value || !event.changedTouches.length) {
+    return
+  }
+
+  const touch = event.changedTouches[0]
+  const deltaX = touch.clientX - drawerTouchStartX
+  const deltaY = Math.abs(touch.clientY - drawerTouchStartY)
+
+  if (deltaX <= -56 && deltaY <= 36) {
+    drawerVisible.value = false
   }
 }
 
@@ -63,7 +113,6 @@ function submitCategory(): void {
 
 function getCategoryTypeLabel(type: CategoryType): string {
   if (type === 'income') return '收入'
-  if (type === 'transfer') return '转账'
   return '支出'
 }
 
@@ -120,90 +169,70 @@ async function importBackup(event: Event): Promise<void> {
 </script>
 
 <template>
-  <section class="screen">
-    <header class="page-heading">
-      <div>
-        <span class="eyebrow">设置中心</span>
-        <h2>设置与分类</h2>
-      </div>
-    </header>
-
-    <el-card shadow="never">
-      <template #header>
-        <div class="section-title-row">
-          <div>
-            <span class="eyebrow">安卓通知监听</span>
-            <h3>通知导入</h3>
+  <section
+    class="screen screen--static settings-screen"
+    @touchstart.passive="handleScreenTouchStart"
+    @touchend.passive="handleScreenTouchEnd"
+  >
+    <el-drawer
+      v-model="drawerVisible"
+      class="settings-drawer-panel"
+      direction="ltr"
+      size="88%"
+      append-to-body
+      :with-header="false"
+      :show-close="false"
+      :close-on-click-modal="true"
+    >
+      <div class="settings-drawer" @touchstart.passive="handleDrawerTouchStart" @touchend.passive="handleDrawerTouchEnd">
+        <el-card shadow="never">
+          <template #header>
+            <div class="section-title-row">
+              <div>
+                <span class="eyebrow">数据备份</span>
+                <h3>导入与导出</h3>
+              </div>
+            </div>
+          </template>
+          <div class="settings-card">
+            <p>支持导出当前账单、分类和通知记录，也支持从备份文件恢复。</p>
+            <div class="settings-actions">
+              <el-button @click="exportBackup">导出备份</el-button>
+              <el-button @click="triggerImport">导入备份</el-button>
+            </div>
+            <input ref="backupInputRef" style="display: none" type="file" accept="application/json" @change="importBackup" />
           </div>
-          <el-tag :type="ingestStore.listenerEnabled ? 'success' : 'warning'" effect="plain">
-            {{ ingestStore.listenerEnabled ? '已开启' : '未开启' }}
-          </el-tag>
-        </div>
-      </template>
-      <div class="settings-card">
-        <p>
-          仅在安卓端可用。开启后，账单助手会监听微信与支付宝通知，将可识别的账单消息推入待确认列表。
-        </p>
-        <el-alert
-          type="info"
-          :closable="false"
-          show-icon
-          title="系统设置页里只会显示账单助手，不会单独列出微信或支付宝。开启账单助手的通知访问权限后，应用会自动过滤这两类通知。"
-        />
-        <div class="settings-actions">
-          <el-button type="primary" :icon="Notification" @click="ingestStore.openListenerSettings()">
-            打开安卓通知访问设置
-          </el-button>
-        </div>
-      </div>
-    </el-card>
+        </el-card>
 
-    <el-card shadow="never">
-      <template #header>
-        <div class="section-title-row">
-          <div>
-            <span class="eyebrow">数据备份</span>
-            <h3>导入与导出</h3>
-          </div>
-        </div>
-      </template>
-      <div class="settings-card">
-        <p>支持导出当前账单、分类和通知记录，也支持从备份文件恢复。</p>
-        <div class="settings-actions">
-          <el-button @click="exportBackup">导出备份</el-button>
-          <el-button @click="triggerImport">导入备份</el-button>
-        </div>
-        <input ref="backupInputRef" style="display: none" type="file" accept="application/json" @change="importBackup" />
-      </div>
-    </el-card>
-
-    <el-card shadow="never">
-      <template #header>
-        <div class="section-title-row">
-          <div>
-            <span class="eyebrow">分类管理</span>
-            <h3>收入 / 支出 / 转账分类</h3>
-          </div>
-        </div>
-      </template>
-      <div class="category-list">
-        <div v-for="category in categoryStore.sortedCategories" :key="category.id" class="category-item">
-          <div class="category-item__main">
-            <span class="category-item__icon" :style="{ background: `${category.color}22`, color: category.color }">
-              {{ category.icon }}
-            </span>
-            <div>
-              <strong>{{ category.name }}</strong>
-              <small>{{ getCategoryTypeLabel(category.type) }}</small>
+        <el-card shadow="never">
+          <template #header>
+            <div class="section-title-row">
+              <div>
+                <span class="eyebrow">分类管理</span>
+                <h3>收入 / 支出分类</h3>
+              </div>
+            </div>
+          </template>
+          <div class="category-list">
+            <div v-for="category in categoryStore.sortedCategories" :key="category.id" class="category-item">
+              <div class="category-item__main">
+                <span class="category-item__icon" :style="{ background: `${category.color}22`, color: category.color }">
+                  {{ category.icon }}
+                </span>
+                <div>
+                  <strong>{{ category.name }}</strong>
+                  <small>{{ getCategoryTypeLabel(category.type) }}</small>
+                </div>
+              </div>
+              <div class="category-item__actions">
+                <el-button circle :icon="EditPen" @click="openEditDialog(category.id)" />
+                <el-button text type="danger" @click="categoryStore.deleteCategory(category.id)">删除</el-button>
+              </div>
             </div>
           </div>
-          <div class="category-item__actions">
-            <el-button circle :icon="EditPen" @click="openEditDialog(category.id)" />
-            <el-button text type="danger" @click="categoryStore.deleteCategory(category.id)">删除</el-button>
-          </div>
-        </div>
+        </el-card>
       </div>
-    </el-card>
+    </el-drawer>
 
     <el-dialog v-model="dialogVisible" title="分类设置" width="92%">
       <div class="dialog-grid">
@@ -211,7 +240,6 @@ async function importBackup(event: Event): Promise<void> {
         <el-select v-model="form.type" placeholder="分类类型">
           <el-option label="支出" value="expense" />
           <el-option label="收入" value="income" />
-          <el-option label="转账" value="transfer" />
         </el-select>
         <el-input v-model="form.icon" maxlength="2" placeholder="图标，例如 🍜" />
         <el-color-picker v-model="form.color" />

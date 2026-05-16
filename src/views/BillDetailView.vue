@@ -7,7 +7,13 @@ import BackPageHeader from '../components/BackPageHeader.vue'
 import { useBillStore } from '../stores/billStore'
 import { useCategoryStore } from '../stores/categoryStore'
 import { formatCurrency, formatDate, formatSourceLabel } from '../utils/format'
-import { getBillDisplayTitle, getBillImageCountText, resolveBillImageSrc } from '../utils/billPresentation'
+import {
+  getBillDisplayTitle,
+  getBillImageCountText,
+  getBillVideoCountText,
+  resolveBillImageSrc,
+  resolveBillVideoSrc,
+} from '../utils/billPresentation'
 
 const route = useRoute()
 const router = useRouter()
@@ -65,6 +71,7 @@ async function handleDelete(): Promise<void> {
         <el-tag effect="plain">{{ category?.name ?? '未分类' }}</el-tag>
         <el-tag type="info" effect="plain">{{ formatSourceLabel(bill.source) }}</el-tag>
         <el-tag v-if="bill.images.length" type="success" effect="plain">{{ getBillImageCountText(bill.images) }}</el-tag>
+        <el-tag v-if="bill.videos?.length" type="warning" effect="plain">{{ getBillVideoCountText(bill.videos) }}</el-tag>
       </div>
     </el-card>
 
@@ -91,12 +98,34 @@ async function handleDelete(): Promise<void> {
       </div>
     </el-card>
 
+    <el-card v-if="bill.videos?.length" shadow="never">
+      <template #header>
+        <div class="section-title-row">
+          <div>
+            <span class="eyebrow">附件</span>
+            <h3>商品视频</h3>
+          </div>
+        </div>
+      </template>
+      <div class="bill-image-gallery">
+        <video
+          v-for="video in bill.videos"
+          :key="video.id"
+          :src="resolveBillVideoSrc(video)"
+          controls
+          preload="metadata"
+          class="bill-image-gallery__item bill-video-gallery__item"
+        />
+      </div>
+    </el-card>
+
     <el-card shadow="never" class="detail-card">
       <el-descriptions :column="1" border>
         <el-descriptions-item label="账单日期">{{ formatDate(bill.billDate) }}</el-descriptions-item>
         <el-descriptions-item label="账单编号">{{ bill.billNo || '未填写' }}</el-descriptions-item>
         <el-descriptions-item label="补充描述">{{ bill.description || '无' }}</el-descriptions-item>
         <el-descriptions-item label="图片数量">{{ getBillImageCountText(bill.images) }}</el-descriptions-item>
+        <el-descriptions-item label="视频数量">{{ getBillVideoCountText(bill.videos ?? []) }}</el-descriptions-item>
         <el-descriptions-item label="原始通知">{{ bill.rawText || '该账单为手动录入' }}</el-descriptions-item>
       </el-descriptions>
     </el-card>

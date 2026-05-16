@@ -1,4 +1,4 @@
-import type { BillImage } from '../../types/bill'
+import type { BillImage, BillVideo } from '../../types/bill'
 import { createId } from '../../utils/id'
 
 const maxImageSide = 1600
@@ -7,10 +7,10 @@ const imageQuality = 0.82
 function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
-    reader.onerror = () => reject(new Error('图片读取失败'))
+    reader.onerror = () => reject(new Error('文件读取失败'))
     reader.onload = () => {
       if (typeof reader.result !== 'string') {
-        reject(new Error('图片读取失败'))
+        reject(new Error('文件读取失败'))
         return
       }
 
@@ -60,6 +60,21 @@ export async function createBillImagesFromFiles(files: File[] | FileList): Promi
       path: await compressImage(file),
       name: file.name || `bill-image-${Date.now()}.jpg`,
       mimeType: 'image/jpeg',
+      size: file.size,
+      createdAt: new Date().toISOString(),
+    })),
+  )
+}
+
+export async function createBillVideosFromFiles(files: File[] | FileList): Promise<BillVideo[]> {
+  const fileList = Array.from(files)
+
+  return Promise.all(
+    fileList.map(async (file) => ({
+      id: createId('bill-video'),
+      path: await readFileAsDataUrl(file),
+      name: file.name || `bill-video-${Date.now()}.mp4`,
+      mimeType: file.type || 'video/mp4',
       size: file.size,
       createdAt: new Date().toISOString(),
     })),
