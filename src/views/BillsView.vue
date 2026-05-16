@@ -92,13 +92,7 @@ const selectedDateLabel = computed(() => {
   return '自定义时间'
 })
 
-const filterSummary = computed(() => {
-  if (!activeFilterCount.value) {
-    return '当前展示全部账单，可通过顶部下拉和左侧筛选快速调整。'
-  }
-
-  return `已启用 ${activeFilterCount.value} 个筛选条件，共命中 ${visibleBills.value.length} 笔账单。`
-})
+const billCountText = computed(() => `共 ${visibleBills.value.length} 笔账单`)
 
 function resetFilters(): void {
   filters.value = createEmptyFilters()
@@ -178,7 +172,7 @@ async function handleShare(format: ShareFormat): Promise<void> {
 </script>
 
 <template>
-  <section class="screen">
+  <section class="screen screen--dense">
     <header class="page-heading">
       <div>
         <span class="eyebrow">账单列表</span>
@@ -253,14 +247,9 @@ async function handleShare(format: ShareFormat): Promise<void> {
       </el-dropdown>
     </div>
 
-    <div class="filter-summary">
-      <div>
-        <span class="eyebrow">筛选概览</span>
-        <p class="filter-summary__text">{{ filterSummary }}</p>
-      </div>
-      <div class="inline-actions">
-        <el-button v-if="activeFilterCount" text @click="resetFilters">清空筛选</el-button>
-      </div>
+    <div class="bill-toolbar-meta">
+      <span class="bill-toolbar-meta__count">{{ billCountText }}</span>
+      <el-button v-if="activeFilterCount" text @click="resetFilters">清空筛选</el-button>
     </div>
 
     <div v-if="visibleBills.length" class="stack-list">

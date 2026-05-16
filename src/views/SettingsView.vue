@@ -10,10 +10,12 @@ import { useCategoryStore } from '../stores/categoryStore'
 import { useIngestStore } from '../stores/ingestStore'
 import type { CategoryType } from '../types/category'
 
+type EditableCategoryType = Exclude<CategoryType, 'transfer'>
+
 interface CategoryFormState {
   id: string
   name: string
-  type: CategoryType
+  type: EditableCategoryType
   icon: string
   color: string
 }
@@ -40,13 +42,20 @@ function createDefaultCategoryForm(): CategoryFormState {
   }
 }
 
+function normalizeCategoryType(type: CategoryType): EditableCategoryType {
+  return type === 'income' ? 'income' : 'expense'
+}
+
 function openEditDialog(categoryId: string): void {
   const category = categoryStore.getCategoryById(categoryId)
   if (!category) {
     return
   }
 
-  Object.assign(form, category)
+  Object.assign(form, {
+    ...category,
+    type: normalizeCategoryType(category.type),
+  })
   dialogVisible.value = true
 }
 
@@ -62,9 +71,7 @@ function submitCategory(): void {
 }
 
 function getCategoryTypeLabel(type: CategoryType): string {
-  if (type === 'income') return '收入'
-  if (type === 'transfer') return '转账'
-  return '支出'
+  return type === 'income' ? '收入' : '支出'
 }
 
 function buildBackupFileName(): string {
@@ -182,7 +189,7 @@ async function importBackup(event: Event): Promise<void> {
         <div class="section-title-row">
           <div>
             <span class="eyebrow">分类管理</span>
-            <h3>收入 / 支出 / 转账分类</h3>
+            <h3>收入 / 支出分类</h3>
           </div>
         </div>
       </template>
@@ -211,7 +218,6 @@ async function importBackup(event: Event): Promise<void> {
         <el-select v-model="form.type" placeholder="分类类型">
           <el-option label="支出" value="expense" />
           <el-option label="收入" value="income" />
-          <el-option label="转账" value="transfer" />
         </el-select>
         <el-input v-model="form.icon" maxlength="2" placeholder="图标，例如 🍜" />
         <el-color-picker v-model="form.color" />
