@@ -1256,12 +1256,12 @@ export function downloadPreparedShareFile(file: PreparedShareFile): void {
   downloadBlob(file.fileName, blob)
 }
 
-export function getShareResultMessage(sharedVia: ShareResultChannel): string {
+export function getShareResultMessage(sharedVia: ShareResultChannel, targetLabel = '目标应用'): string {
   switch (sharedVia) {
     case 'package':
-      return '已打开微信分享'
+      return `已打开${targetLabel}分享`
     case 'chooser':
-      return '微信不可直接处理该格式，已打开系统分享'
+      return `已打开系统分享，请继续选择${targetLabel}`
     default:
       return '当前设备已导出分享文件'
   }

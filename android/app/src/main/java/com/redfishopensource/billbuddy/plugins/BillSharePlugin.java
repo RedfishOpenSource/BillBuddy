@@ -54,6 +54,28 @@ public class BillSharePlugin extends Plugin {
         return shareIntent;
     }
 
+    private Intent createTargetedShareIntent(Intent shareIntent, String targetPackage) {
+        if (!hasText(targetPackage)) {
+            return null;
+        }
+
+        Intent targetedIntent = new Intent(shareIntent);
+        targetedIntent.setPackage(targetPackage);
+        return targetedIntent.resolveActivity(getContext().getPackageManager()) != null ? targetedIntent : null;
+    }
+
+    private Intent createShareChooserIntent(Intent shareIntent, String title, String targetPackage) {
+        Intent chooserIntent = Intent.createChooser(shareIntent, title);
+        chooserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+        Intent targetedIntent = createTargetedShareIntent(shareIntent, targetPackage);
+        if (targetedIntent != null) {
+            chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Intent[]{targetedIntent});
+        }
+
+        return chooserIntent;
+    }
+
     private JSObject createShareResult(String sharedVia) {
         JSObject result = new JSObject();
         result.put("sharedVia", sharedVia);
@@ -68,6 +90,7 @@ public class BillSharePlugin extends Plugin {
         String mimeType = call.getString("mimeType", "text/plain");
         String title = call.getString("title", "分享");
         String targetPackage = call.getString("targetPackage");
+        boolean preferChooser = call.getBoolean("preferChooser", false);
 
         try {
             File shareFile = new File(getShareDirectory(), fileName);
@@ -83,19 +106,24 @@ public class BillSharePlugin extends Plugin {
 
             Intent shareIntent = createShareIntent(fileUri, mimeType);
 
-            if (hasText(targetPackage)) {
-                shareIntent.setPackage(targetPackage);
+            if (preferChooser) {
+                Intent chooserIntent = createShareChooserIntent(shareIntent, title, targetPackage);
+                getContext().startActivity(chooserIntent);
+                call.resolve(createShareResult("chooser"));
+                return;
+            }
+
+            Intent targetedIntent = createTargetedShareIntent(shareIntent, targetPackage);
+            if (targetedIntent != null) {
                 try {
-                    getContext().startActivity(shareIntent);
+                    getContext().startActivity(targetedIntent);
                     call.resolve(createShareResult("package"));
                     return;
                 } catch (ActivityNotFoundException ignored) {
-                    shareIntent.setPackage(null);
                 }
             }
 
-            Intent chooserIntent = Intent.createChooser(shareIntent, title);
-            chooserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            Intent chooserIntent = createShareChooserIntent(shareIntent, title, targetPackage);
             getContext().startActivity(chooserIntent);
             call.resolve(createShareResult("chooser"));
         } catch (Exception exception) {

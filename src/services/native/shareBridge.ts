@@ -5,6 +5,7 @@ export interface ShareFileOptions {
   mimeType: string
   title?: string
   targetPackage?: string
+  preferChooser?: boolean
   textContent?: string
   base64Content?: string
 }
@@ -13,24 +14,42 @@ export interface ShareFileResult {
   sharedVia: 'package' | 'chooser'
 }
 
+export interface ShareTargetOption {
+  label: string
+  shortLabel: string
+  description: string
+  targetPackage: string
+}
+
 interface BillSharePlugin {
   shareFile(options: ShareFileOptions): Promise<ShareFileResult>
 }
 
 const BillShare = registerPlugin<BillSharePlugin>('BillShare')
 
+export const preferredShareTargets: readonly ShareTargetOption[] = [
+  {
+    label: '微信',
+    shortLabel: '微',
+    description: '优先分享到微信',
+    targetPackage: 'com.tencent.mm',
+  },
+  {
+    label: 'QQ',
+    shortLabel: 'Q',
+    description: '优先分享到 QQ',
+    targetPackage: 'com.tencent.mobileqq',
+  },
+] as const
+
 export function isShareBridgeAvailable(): boolean {
   return Capacitor.getPlatform() === 'android'
 }
 
-export async function shareFile(options: ShareFileOptions): Promise<ShareFileResult | null> {
+export function shareFile(options: ShareFileOptions): Promise<ShareFileResult | null> {
   if (!isShareBridgeAvailable()) {
-    return null
+    return Promise.resolve(null)
   }
 
-  try {
-    return await BillShare.shareFile(options)
-  } catch {
-    return null
-  }
+  return BillShare.shareFile(options).catch(() => null)
 }

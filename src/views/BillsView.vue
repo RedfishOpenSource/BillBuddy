@@ -16,47 +16,42 @@ import {
   getShareResultMessage,
   prepareBillsShareFile,
 } from '../services/analytics/shareReportService'
-import { shareFile } from '../services/native/shareBridge'
+import { preferredShareTargets, shareFile } from '../services/native/shareBridge'
 import { useBillStore } from '../stores/billStore'
 import { useCategoryStore } from '../stores/categoryStore'
-import type { BillSort } from '../types/bill'
+import type { BillFilters, BillSort } from '../types/bill'
 
 const router = useRouter()
 const billStore = useBillStore()
 const categoryStore = useCategoryStore()
-const filters = ref(createEmptyFilters())
+const appliedFilters = ref(createEmptyFilters())
+const draftFilters = ref(createEmptyFilters())
 const filterDrawerVisible = ref(false)
 const shareActionDrawerVisible = ref(false)
 const sharing = ref(false)
 
-const shareTargets = [
-  { label: '微信', targetPackage: 'com.tencent.mm' },
-  { label: 'QQ', targetPackage: 'com.tencent.mobileqq' },
-  { label: '支付宝', targetPackage: 'com.eg.android.AlipayGphone' },
-] as const
-
 const visibleBills = computed(() =>
   sortBills(
-    filterBills(billStore.bills, filters.value, categoryStore.sortedCategories),
-    filters.value.sortBy,
+    filterBills(billStore.bills, appliedFilters.value, categoryStore.sortedCategories),
+    appliedFilters.value.sortBy,
   ),
 )
 
 const activeFilterCount = computed(() => {
   return [
-    filters.value.keyword,
-    filters.value.categoryId,
-    filters.value.startDate,
-    filters.value.endDate,
+    appliedFilters.value.keyword,
+    appliedFilters.value.categoryId,
+    appliedFilters.value.startDate,
+    appliedFilters.value.endDate,
   ].filter(Boolean).length
 })
 
 const selectedCategoryLabel = computed(() =>
-  categoryStore.getCategoryById(filters.value.categoryId)?.name ?? '全部分类',
+  categoryStore.getCategoryById(appliedFilters.value.categoryId)?.name ?? '全部分类',
 )
 
 const selectedSortLabel = computed(() => {
-  switch (filters.value.sortBy) {
+  switch (appliedFilters.value.sortBy) {
     case 'date_asc':
       return '最早在前'
     case 'amount_desc':
@@ -69,7 +64,7 @@ const selectedSortLabel = computed(() => {
 })
 
 const selectedDateLabel = computed(() => {
-  const { startDate, endDate } = filters.value
+  const { startDate, endDate } = appliedFilters.value
 
   if (!startDate && !endDate) {
     return '全部时间'
@@ -98,17 +93,41 @@ const selectedDateLabel = computed(() => {
 
 const billCountText = computed(() => `共 ${visibleBills.value.length} 笔账单`)
 
+function cloneFilters(filters: BillFilters): BillFilters {
+  return { ...filters }
+}
+
+function syncDraftFilters(): void {
+  draftFilters.value = cloneFilters(appliedFilters.value)
+}
+
 function resetFilters(): void {
-  filters.value = createEmptyFilters()
+  appliedFilters.value = createEmptyFilters()
+  syncDraftFilters()
+}
+
+function openFilterDrawer(): void {
+  syncDraftFilters()
+  filterDrawerVisible.value = true
+}
+
+function closeFilterDrawer(): void {
+  filterDrawerVisible.value = false
+  syncDraftFilters()
+}
+
+function applyFilterDrawer(): void {
+  appliedFilters.value = cloneFilters(draftFilters.value)
+  filterDrawerVisible.value = false
 }
 
 function handleCategoryCommand(command: string | number): void {
-  filters.value.categoryId = typeof command === 'string' ? command : ''
+  appliedFilters.value.categoryId = typeof command === 'string' ? command : ''
 }
 
 function handleSortCommand(command: string | number): void {
   if (typeof command === 'string') {
-    filters.value.sortBy = command as BillSort
+    appliedFilters.value.sortBy = command as BillSort
   }
 }
 
@@ -121,24 +140,24 @@ function handleDateCommand(command: string | number): void {
 
   switch (command) {
     case 'last7':
-      filters.value.startDate = dayjs().subtract(6, 'day').format('YYYY-MM-DD')
-      filters.value.endDate = today
+      appliedFilters.value.startDate = dayjs().subtract(6, 'day').format('YYYY-MM-DD')
+      appliedFilters.value.endDate = today
       return
     case 'last30':
-      filters.value.startDate = dayjs().subtract(29, 'day').format('YYYY-MM-DD')
-      filters.value.endDate = today
+      appliedFilters.value.startDate = dayjs().subtract(29, 'day').format('YYYY-MM-DD')
+      appliedFilters.value.endDate = today
       return
     case 'thisMonth':
-      filters.value.startDate = dayjs().startOf('month').format('YYYY-MM-DD')
-      filters.value.endDate = today
+      appliedFilters.value.startDate = dayjs().startOf('month').format('YYYY-MM-DD')
+      appliedFilters.value.endDate = today
       return
     default:
-      filters.value.startDate = ''
-      filters.value.endDate = ''
+      appliedFilters.value.startDate = ''
+      appliedFilters.value.endDate = ''
   }
 }
 
-async function handleShare(targetPackage: string): Promise<void> {
+async function handleShare(targetPackage: string, targetLabel: string): Promise<void> {
   if (!visibleBills.value.length) {
     ElMessage.warning('当前没有可分享的账单')
     return
@@ -150,21 +169,22 @@ async function handleShare(targetPackage: string): Promise<void> {
   try {
     const file = await prepareBillsShareFile('pdf', `账单分享-${new Date().toISOString().slice(0, 10)}`, {
       title: '账单分享',
-      filters: filters.value,
+      filters: appliedFilters.value,
       bills: visibleBills.value,
       categories: categoryStore.sortedCategories,
     })
     const shared = await shareFile({
       ...file,
-      title: '分享账单列表',
+      title: `分享到${targetLabel}`,
       targetPackage,
+      preferChooser: true,
     })
 
     if (shared) {
-      ElMessage.success(getShareResultMessage(shared.sharedVia))
+      ElMessage.success(getShareResultMessage(shared.sharedVia, targetLabel))
     } else {
       downloadPreparedShareFile(file)
-      ElMessage.success(getShareResultMessage('download'))
+      ElMessage.success(getShareResultMessage('download', targetLabel))
     }
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '分享失败，请稍后重试')
@@ -179,7 +199,7 @@ async function handleShare(targetPackage: string): Promise<void> {
     <div class="bill-search-panel">
       <div class="bill-search-strip">
         <el-input
-          v-model="filters.keyword"
+          v-model="appliedFilters.keyword"
           :prefix-icon="Search"
           placeholder="搜索账单描述、编号、通知内容"
           clearable
@@ -191,7 +211,7 @@ async function handleShare(targetPackage: string): Promise<void> {
 
       <div class="bill-quick-filter-bar">
         <el-dropdown @command="handleCategoryCommand">
-          <button type="button" class="bill-quick-filter-chip" :class="{ 'is-active': !!filters.categoryId }">
+          <button type="button" class="bill-quick-filter-chip" :class="{ 'is-active': !!appliedFilters.categoryId }">
             <span>{{ selectedCategoryLabel }}</span>
             <el-icon class="bill-quick-filter-chip__icon"><ArrowDown /></el-icon>
           </button>
@@ -209,7 +229,7 @@ async function handleShare(targetPackage: string): Promise<void> {
           <button
             type="button"
             class="bill-quick-filter-chip"
-            :class="{ 'is-active': !!filters.startDate || !!filters.endDate }"
+            :class="{ 'is-active': !!appliedFilters.startDate || !!appliedFilters.endDate }"
           >
             <span>{{ selectedDateLabel }}</span>
             <el-icon class="bill-quick-filter-chip__icon"><ArrowDown /></el-icon>
@@ -225,7 +245,7 @@ async function handleShare(targetPackage: string): Promise<void> {
         </el-dropdown>
 
         <el-dropdown @command="handleSortCommand">
-          <button type="button" class="bill-quick-filter-chip" :class="{ 'is-active': filters.sortBy !== 'date_desc' }">
+          <button type="button" class="bill-quick-filter-chip" :class="{ 'is-active': appliedFilters.sortBy !== 'date_desc' }">
             <span>{{ selectedSortLabel }}</span>
             <el-icon class="bill-quick-filter-chip__icon"><ArrowDown /></el-icon>
           </button>
@@ -239,7 +259,7 @@ async function handleShare(targetPackage: string): Promise<void> {
           </template>
         </el-dropdown>
 
-        <el-button class="bill-quick-filter-chip bill-quick-filter-chip--action" plain @click="filterDrawerVisible = true">
+        <el-button class="bill-quick-filter-chip bill-quick-filter-chip--action" plain @click="openFilterDrawer">
           <el-icon><Operation /></el-icon>
           <span>筛选</span>
         </el-button>
@@ -264,24 +284,44 @@ async function handleShare(targetPackage: string): Promise<void> {
     </div>
     <el-empty v-else description="当前筛选条件下没有账单。" />
 
-    <el-drawer v-model="filterDrawerVisible" title="筛选条件" direction="ltr" size="88%" append-to-body>
-      <BillFilterBar v-model="filters" :categories="categoryStore.sortedCategories" plain />
+    <el-drawer
+      v-model="filterDrawerVisible"
+      title="筛选条件"
+      direction="rtl"
+      size="88%"
+      append-to-body
+      @closed="syncDraftFilters"
+    >
+      <div class="bill-filter-drawer">
+        <BillFilterBar v-model="draftFilters" :categories="categoryStore.sortedCategories" plain />
+        <div class="bill-filter-drawer__footer">
+          <el-button @click="closeFilterDrawer">取消</el-button>
+          <el-button type="primary" @click="applyFilterDrawer">确认</el-button>
+        </div>
+      </div>
     </el-drawer>
 
     <el-drawer v-model="shareActionDrawerVisible" direction="btt" size="auto" :with-header="false" append-to-body>
       <div class="action-sheet share-target-sheet">
-        <div class="share-target-sheet__group">
-          <span class="eyebrow">分享至</span>
-          <div class="share-target-sheet__row">
-            <el-button
-              v-for="target in shareTargets"
-              :key="target.targetPackage"
-              :loading="sharing"
-              @click="handleShare(target.targetPackage)"
-            >
-              {{ target.label }}
-            </el-button>
-          </div>
+        <div class="share-target-sheet__header">
+          <span class="eyebrow">分享账单</span>
+          <h3>选择分享方式</h3>
+          <p>优先尝试打开对应应用；若目标应用不支持当前格式，会回退到系统分享。</p>
+        </div>
+        <div class="share-target-sheet__row">
+          <el-button
+            v-for="target in preferredShareTargets"
+            :key="target.targetPackage"
+            class="share-target-card"
+            :loading="sharing"
+            @click="handleShare(target.targetPackage, target.label)"
+          >
+            <span class="share-target-card__badge">{{ target.shortLabel }}</span>
+            <span class="share-target-card__content">
+              <strong>{{ target.label }}</strong>
+              <small>{{ target.description }}</small>
+            </span>
+          </el-button>
         </div>
         <el-button class="share-target-sheet__cancel" @click="shareActionDrawerVisible = false">取消</el-button>
       </div>

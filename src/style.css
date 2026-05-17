@@ -79,19 +79,30 @@ a {
 
 #app {
   min-height: 100vh;
-  min-height: 100dvh;
+  min-height: 100svh;
+  height: 100vh;
+  height: 100svh;
+  overflow: hidden;
 }
 
 .app-shell {
   min-height: 100vh;
-  min-height: 100dvh;
-  overflow-x: hidden;
+  min-height: 100svh;
+  height: 100vh;
+  height: 100svh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   overscroll-behavior-x: none;
   background: var(--bg-page);
 }
 
 .app-shell__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   overflow-x: hidden;
+  overscroll-behavior-y: contain;
   padding-bottom: var(--space-shell-bottom);
 }
 
@@ -111,7 +122,7 @@ a {
 
 .screen--static {
   min-height: calc(100vh - 20px);
-  min-height: calc(100dvh - 20px);
+  min-height: calc(100svh - 20px);
   padding-bottom: 24px;
   overflow: hidden;
   align-content: start;
@@ -585,9 +596,9 @@ a {
   top: env(safe-area-inset-top);
   z-index: 20;
   display: grid;
-  gap: 10px;
+  gap: 12px;
   margin: -20px -16px 0;
-  padding: 12px 16px 10px;
+  padding: 14px 16px 12px;
   border-bottom: 1px solid var(--line-soft);
   background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.04);
@@ -597,7 +608,7 @@ a {
 .bill-search-strip {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   padding: 0;
 }
 
@@ -617,13 +628,14 @@ a {
 .bill-search-strip__more {
   flex: none;
   margin: 0;
+  border-radius: 12px;
 }
 
 .bill-quick-filter-bar {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  padding-bottom: 2px;
+  gap: 10px;
+  padding-bottom: 4px;
 }
 
 .bill-quick-filter-bar > * {
@@ -636,11 +648,11 @@ a {
   border: 1px solid var(--line-soft);
   background: var(--bg-surface);
   border-radius: 999px;
-  padding: 8px 10px;
+  padding: 10px 12px;
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
   white-space: nowrap;
   color: var(--text-main);
@@ -680,6 +692,23 @@ a {
   align-items: center;
   gap: 12px;
   min-height: 24px;
+}
+
+.bill-filter-drawer {
+  display: grid;
+  gap: 16px;
+  min-height: 100%;
+}
+
+.bill-filter-drawer__footer {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: auto;
+}
+
+.bill-filter-drawer__footer .el-button {
+  margin: 0;
 }
 
 .bill-toolbar-meta__count {
@@ -788,27 +817,77 @@ a {
 }
 
 .share-target-sheet {
-  gap: 12px;
+  gap: 14px;
 }
 
-.share-target-sheet__group {
+.share-target-sheet__header {
   display: grid;
-  gap: 12px;
+  gap: 8px;
+}
+
+.share-target-sheet__header p {
+  font-size: 13px;
+  color: var(--text-muted);
 }
 
 .share-target-sheet__row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
-.share-target-sheet__row .el-button,
+.share-target-card,
 .share-target-sheet__cancel {
   margin: 0;
 }
 
+.share-target-card {
+  width: 100%;
+  height: auto;
+  min-height: 88px;
+  padding: 16px 14px;
+  border-radius: var(--radius-md);
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.share-target-card__badge {
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.share-target-card__content {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  text-align: left;
+}
+
+.share-target-card__content strong {
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.share-target-card__content small {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: normal;
+}
+
 .share-target-sheet__cancel {
   width: 100%;
+  min-height: 44px;
+  border-radius: 12px;
 }
 
 .entry-sheet {
@@ -1170,6 +1249,8 @@ a {
   }
 
   .bill-quick-filter-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
     padding-bottom: 0;
   }
 
@@ -1194,8 +1275,9 @@ a {
     grid-template-columns: 1fr;
   }
 
-  .bill-quick-filter-chip {
-    min-width: max-content;
+  .bill-filter-drawer__footer,
+  .share-target-sheet__row {
+    grid-template-columns: 1fr;
   }
 
   .is-span-2 {

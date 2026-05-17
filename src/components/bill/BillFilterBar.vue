@@ -44,7 +44,7 @@ function resetFilters(): void {
       <div class="section-title-row">
         <div>
           <span class="eyebrow">检索条件</span>
-          <h3>搜索与排序</h3>
+          <h3>搜索与筛选</h3>
         </div>
         <el-button link @click="resetFilters">重置</el-button>
       </div>
@@ -55,12 +55,6 @@ function resetFilters(): void {
         </el-select>
         <el-date-picker v-model="filters.startDate" type="date" value-format="YYYY-MM-DD" placeholder="开始日期" />
         <el-date-picker v-model="filters.endDate" type="date" value-format="YYYY-MM-DD" placeholder="结束日期" />
-        <el-select v-model="filters.sortBy" placeholder="排序方式">
-          <el-option label="时间：最新在前" value="date_desc" />
-          <el-option label="时间：最早在前" value="date_asc" />
-          <el-option label="金额：从高到低" value="amount_desc" />
-          <el-option label="金额：从低到高" value="amount_asc" />
-        </el-select>
       </div>
     </div>
   </component>

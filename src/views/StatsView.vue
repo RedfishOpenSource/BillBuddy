@@ -14,7 +14,7 @@ import {
   summarizeBills,
 } from '../services/analytics/billSummaryService'
 import { downloadPreparedShareFile, getShareResultMessage, prepareStatsShareFile } from '../services/analytics/shareReportService'
-import { shareFile } from '../services/native/shareBridge'
+import { preferredShareTargets, shareFile } from '../services/native/shareBridge'
 import { useBillStore } from '../stores/billStore'
 import { useCategoryStore } from '../stores/categoryStore'
 import { formatMonthLabel } from '../utils/format'
@@ -27,12 +27,6 @@ const categoryStore = useCategoryStore()
 const allMonthsValue = 0
 const shareActionDrawerVisible = ref(false)
 const sharing = ref(false)
-
-const shareTargets = [
-  { label: '微信', targetPackage: 'com.tencent.mm' },
-  { label: 'QQ', targetPackage: 'com.tencent.mobileqq' },
-  { label: '支付宝', targetPackage: 'com.eg.android.AlipayGphone' },
-] as const
 
 const availableYears = computed(() => getAvailableYears(billStore.bills))
 const selectedYear = ref(dayjs().year())
@@ -83,7 +77,7 @@ const summaryLabel = computed(() => {
 const trendEyebrow = computed(() => (isYearView.value ? '年度视图' : '月度视图'))
 const trendTitle = computed(() => (isYearView.value ? '月度趋势' : '每日趋势'))
 
-async function handleShare(targetPackage: string): Promise<void> {
+async function handleShare(targetPackage: string, targetLabel: string): Promise<void> {
   if (!trend.value.length) {
     ElMessage.warning('当前没有可分享的统计结果')
     return
@@ -104,15 +98,16 @@ async function handleShare(targetPackage: string): Promise<void> {
     })
     const shared = await shareFile({
       ...file,
-      title: '分享统计结果',
+      title: `分享到${targetLabel}`,
       targetPackage,
+      preferChooser: true,
     })
 
     if (shared) {
-      ElMessage.success(getShareResultMessage(shared.sharedVia))
+      ElMessage.success(getShareResultMessage(shared.sharedVia, targetLabel))
     } else {
       downloadPreparedShareFile(file)
-      ElMessage.success(getShareResultMessage('download'))
+      ElMessage.success(getShareResultMessage('download', targetLabel))
     }
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '分享失败，请稍后重试')
@@ -148,18 +143,25 @@ async function handleShare(targetPackage: string): Promise<void> {
 
     <el-drawer v-model="shareActionDrawerVisible" direction="btt" size="auto" :with-header="false" append-to-body>
       <div class="action-sheet share-target-sheet">
-        <div class="share-target-sheet__group">
-          <span class="eyebrow">分享至</span>
-          <div class="share-target-sheet__row">
-            <el-button
-              v-for="target in shareTargets"
-              :key="target.targetPackage"
-              :loading="sharing"
-              @click="handleShare(target.targetPackage)"
-            >
-              {{ target.label }}
-            </el-button>
-          </div>
+        <div class="share-target-sheet__header">
+          <span class="eyebrow">分享统计</span>
+          <h3>选择分享方式</h3>
+          <p>优先尝试打开对应应用；若目标应用不支持当前格式，会回退到系统分享。</p>
+        </div>
+        <div class="share-target-sheet__row">
+          <el-button
+            v-for="target in preferredShareTargets"
+            :key="target.targetPackage"
+            class="share-target-card"
+            :loading="sharing"
+            @click="handleShare(target.targetPackage, target.label)"
+          >
+            <span class="share-target-card__badge">{{ target.shortLabel }}</span>
+            <span class="share-target-card__content">
+              <strong>{{ target.label }}</strong>
+              <small>{{ target.description }}</small>
+            </span>
+          </el-button>
         </div>
         <el-button class="share-target-sheet__cancel" @click="shareActionDrawerVisible = false">取消</el-button>
       </div>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { EditPen } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { downloadTextFile } from '../../services/analytics/shareReportService'
 import { createBackupPayload, applyBackupPayload, parseBackupPayload } from '../../services/db/backupService'
 import { shareFile } from '../../services/native/shareBridge'
@@ -27,6 +27,29 @@ const ingestStore = useIngestStore()
 const dialogVisible = ref(false)
 const backupInputRef = ref<HTMLInputElement | null>(null)
 const form = reactive<CategoryFormState>(createDefaultCategoryForm())
+
+const listenerStatus = computed(() => {
+  if (!ingestStore.listenerAvailable) {
+    return {
+      className: 'is-warning',
+      label: '当前设备不支持',
+    }
+  }
+
+  return ingestStore.listenerEnabled
+    ? {
+        className: 'is-success',
+        label: '已开启',
+      }
+    : {
+        className: 'is-warning',
+        label: '未开启',
+      }
+})
+
+const listenerActionLabel = computed(() =>
+  ingestStore.listenerEnabled ? '重新打开通知访问设置' : '打开通知访问设置',
+)
 
 function createDefaultCategoryForm(): CategoryFormState {
   return {
@@ -66,6 +89,14 @@ function getCategoryTypeLabel(type: CategoryType): string {
 
 function buildBackupFileName(): string {
   return `账单助手备份-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
+}
+
+onMounted(() => {
+  void ingestStore.refreshListenerStatus()
+})
+
+async function openNotificationListenerSettings(): Promise<void> {
+  await ingestStore.openListenerSettings()
 }
 
 async function exportBackup(): Promise<void> {
@@ -118,6 +149,27 @@ async function importBackup(event: Event): Promise<void> {
 
 <template>
   <div class="settings-drawer">
+    <el-card shadow="never">
+      <template #header>
+        <div class="section-title-row">
+          <div>
+            <span class="eyebrow">通知导入</span>
+            <h3>支付宝 / 微信通知监听</h3>
+          </div>
+          <span class="metric-badge" :class="listenerStatus.className">{{ listenerStatus.label }}</span>
+        </div>
+      </template>
+      <div class="settings-card">
+        <p>开启后可监听支付宝和微信的支付通知，并把新记录自动导入待确认列表。</p>
+        <p>Android 系统设置里通常只会显示 BillBuddy，开启后应用内部会自动识别支付宝和微信通知。</p>
+        <div class="settings-actions">
+          <el-button :disabled="!ingestStore.listenerAvailable" @click="openNotificationListenerSettings">
+            {{ listenerActionLabel }}
+          </el-button>
+        </div>
+      </div>
+    </el-card>
+
     <el-card shadow="never">
       <template #header>
         <div class="section-title-row">
