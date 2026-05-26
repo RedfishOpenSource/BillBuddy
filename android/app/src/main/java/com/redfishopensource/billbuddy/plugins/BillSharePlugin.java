@@ -13,6 +13,7 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
+import android.app.Activity;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
@@ -67,6 +68,7 @@ public class BillSharePlugin extends Plugin {
     private Intent createShareChooserIntent(Intent shareIntent, String title, String targetPackage) {
         Intent chooserIntent = Intent.createChooser(shareIntent, title);
         chooserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        chooserIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
 
         Intent targetedIntent = createTargetedShareIntent(shareIntent, targetPackage);
         if (targetedIntent != null) {
@@ -74,6 +76,16 @@ public class BillSharePlugin extends Plugin {
         }
 
         return chooserIntent;
+    }
+
+    private void launchIntent(Intent intent) {
+        Activity activity = getActivity();
+        if (activity != null) {
+            activity.startActivity(intent);
+            return;
+        }
+
+        getContext().startActivity(intent);
     }
 
     private JSObject createShareResult(String sharedVia) {
@@ -108,7 +120,7 @@ public class BillSharePlugin extends Plugin {
 
             if (preferChooser) {
                 Intent chooserIntent = createShareChooserIntent(shareIntent, title, targetPackage);
-                getContext().startActivity(chooserIntent);
+                launchIntent(chooserIntent);
                 call.resolve(createShareResult("chooser"));
                 return;
             }
@@ -116,7 +128,7 @@ public class BillSharePlugin extends Plugin {
             Intent targetedIntent = createTargetedShareIntent(shareIntent, targetPackage);
             if (targetedIntent != null) {
                 try {
-                    getContext().startActivity(targetedIntent);
+                    launchIntent(targetedIntent);
                     call.resolve(createShareResult("package"));
                     return;
                 } catch (ActivityNotFoundException ignored) {
@@ -124,7 +136,7 @@ public class BillSharePlugin extends Plugin {
             }
 
             Intent chooserIntent = createShareChooserIntent(shareIntent, title, targetPackage);
-            getContext().startActivity(chooserIntent);
+            launchIntent(chooserIntent);
             call.resolve(createShareResult("chooser"));
         } catch (Exception exception) {
             call.reject("Failed to share file", exception);

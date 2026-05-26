@@ -5,16 +5,13 @@ import {
   DataAnalysis,
   EditPen,
   HomeFilled,
-  Microphone,
   Money,
   Picture,
   Plus,
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { computed, ref, watch, type Component } from 'vue'
+import { computed, ref, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import SettingsPanelContent from '../components/settings/SettingsPanelContent.vue'
-import { buildVoiceBillDraft } from '../services/entry/voiceBillDraftService'
 import { setPendingNewBillDraft, type PendingNewBillDraft } from '../services/entry/newBillDraftSession'
 import { createBillImagesFromFiles, createBillVideosFromFiles } from '../services/native/billImageService'
 import {
@@ -22,9 +19,7 @@ import {
   captureBillVideo,
   isBillEntryAvailable,
   pickBillImages,
-  recognizeBillSpeech,
 } from '../services/native/entryBridge'
-import { useCategoryStore } from '../stores/categoryStore'
 
 type AppTab = {
   label: string
@@ -34,7 +29,6 @@ type AppTab = {
 
 const route = useRoute()
 const router = useRouter()
-const categoryStore = useCategoryStore()
 
 const tabs: AppTab[] = [
   { label: '总览', path: '/home', icon: HomeFilled },
@@ -47,58 +41,25 @@ const leftTabs = tabs.slice(0, 2)
 const rightTabs = tabs.slice(2)
 
 const entryDrawerVisible = ref(false)
-const settingsDrawerVisible = ref(false)
 const handlingEntry = ref(false)
-const handlingSpeech = ref(false)
 const galleryInputRef = ref<HTMLInputElement | null>(null)
 const photoInputRef = ref<HTMLInputElement | null>(null)
 const videoInputRef = ref<HTMLInputElement | null>(null)
 
 const cameraLongPressDelay = 520
-const settingsSwipeThreshold = 56
-const settingsSwipeEdge = 24
-const swipeVerticalTolerance = 36
 
 let cameraPressStartedAt = 0
 let activeCameraPointerId: number | null = null
-let shellTouchStartX = 0
-let shellTouchStartY = 0
-let settingsTouchStartX = 0
-let settingsTouchStartY = 0
 
-const activeTabPath = computed(function (): string {
-  const matchedTab = tabs.find(function (tab) {
-    return route.path.startsWith(tab.path)
-  })
-
+const activeTabPath = computed(() => {
+  const matchedTab = tabs.find((tab) => route.path.startsWith(tab.path))
   return matchedTab?.path ?? ''
 })
 
-const isOverviewRoute = computed(function (): boolean {
-  return activeTabPath.value === '/home'
-})
-
-const entryBusy = computed(function (): boolean {
-  return handlingEntry.value || handlingSpeech.value
-})
-
-watch(
-  () => route.query.drawer,
-  (drawer) => {
-    if (drawer !== 'settings') {
-      return
-    }
-
-    settingsDrawerVisible.value = true
-    const nextQuery = { ...route.query }
-    delete nextQuery.drawer
-    void router.replace({ path: route.path, query: nextQuery })
-  },
-  { immediate: true },
-)
+const isOverviewRoute = computed(() => activeTabPath.value === '/home')
+const entryBusy = computed(() => handlingEntry.value)
 
 function navigateTo(path: string): void {
-  closeSettingsDrawer()
   void router.push(path)
 }
 
@@ -109,66 +70,6 @@ function openEntryDrawer(): void {
 function closeEntryDrawer(): void {
   entryDrawerVisible.value = false
   resetCameraPress()
-}
-
-function openSettingsDrawer(): void {
-  settingsDrawerVisible.value = true
-}
-
-function closeSettingsDrawer(): void {
-  settingsDrawerVisible.value = false
-}
-
-function handleShellTouchStart(event: TouchEvent): void {
-  if (isOverviewRoute.value || !event.touches.length) {
-    return
-  }
-
-  const touch = event.touches[0]
-  shellTouchStartX = touch.clientX
-  shellTouchStartY = touch.clientY
-}
-
-function handleShellTouchEnd(event: TouchEvent): void {
-  if (isOverviewRoute.value || settingsDrawerVisible.value || !event.changedTouches.length) {
-    return
-  }
-
-  const touch = event.changedTouches[0]
-  const deltaX = touch.clientX - shellTouchStartX
-  const deltaY = Math.abs(touch.clientY - shellTouchStartY)
-
-  if (shellTouchStartX > settingsSwipeEdge) {
-    return
-  }
-
-  if (deltaX >= settingsSwipeThreshold && deltaY <= swipeVerticalTolerance && deltaX > deltaY) {
-    openSettingsDrawer()
-  }
-}
-
-function handleSettingsTouchStart(event: TouchEvent): void {
-  if (!event.touches.length) {
-    return
-  }
-
-  const touch = event.touches[0]
-  settingsTouchStartX = touch.clientX
-  settingsTouchStartY = touch.clientY
-}
-
-function handleSettingsTouchEnd(event: TouchEvent): void {
-  if (!settingsDrawerVisible.value || !event.changedTouches.length) {
-    return
-  }
-
-  const touch = event.changedTouches[0]
-  const deltaX = touch.clientX - settingsTouchStartX
-  const deltaY = Math.abs(touch.clientY - settingsTouchStartY)
-
-  if (deltaX <= -settingsSwipeThreshold && deltaY <= swipeVerticalTolerance) {
-    closeSettingsDrawer()
-  }
 }
 
 function resetCameraPress(): void {
@@ -282,31 +183,6 @@ async function handleVideoEntry(): Promise<void> {
   }
 }
 
-async function handleAiEntry(): Promise<void> {
-  if (handlingSpeech.value) {
-    return
-  }
-
-  if (!isBillEntryAvailable()) {
-    ElMessage.warning('当前设备暂不支持 AI 语音录入')
-    return
-  }
-
-  handlingSpeech.value = true
-  try {
-    const text = await recognizeBillSpeech('请说出账单内容，例如午餐 36 元 今天支付')
-    if (!text) {
-      return
-    }
-
-    await openNewBillWithDraft(buildVoiceBillDraft(text, categoryStore.sortedCategories))
-  } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '语音识别失败，请稍后重试')
-  } finally {
-    handlingSpeech.value = false
-  }
-}
-
 function handleCameraPressStart(event: PointerEvent): void {
   if (entryBusy.value) {
     return
@@ -410,26 +286,10 @@ async function handleVideoInputChange(event: Event): Promise<void> {
 </script>
 
 <template>
-  <div class="app-shell" @touchstart.passive="handleShellTouchStart" @touchend.passive="handleShellTouchEnd">
+  <div class="app-shell">
     <main class="app-shell__body" :class="{ 'app-shell__body--locked': isOverviewRoute }">
       <router-view />
     </main>
-
-    <el-drawer
-      v-model="settingsDrawerVisible"
-      class="settings-drawer-panel"
-      direction="ltr"
-      size="88%"
-      append-to-body
-      :with-header="false"
-      :show-close="false"
-      :close-on-click-modal="true"
-      @closed="closeSettingsDrawer"
-    >
-      <div class="settings-drawer" @touchstart.passive="handleSettingsTouchStart" @touchend.passive="handleSettingsTouchEnd">
-        <SettingsPanelContent />
-      </div>
-    </el-drawer>
 
     <el-card shadow="never" class="tabbar">
       <div class="tabbar__grid" aria-label="主导航">
@@ -483,7 +343,7 @@ async function handleVideoInputChange(event: Event): Promise<void> {
           <button type="button" class="entry-sheet__button" :disabled="entryBusy" @click="handleGalleryEntry">
             <span class="entry-sheet__icon"><el-icon><Picture /></el-icon></span>
             <strong>从相册选择</strong>
-            <span>把选中的图片直接带入商品照片字段</span>
+            <span>把选中的图片直接带入表单</span>
           </button>
 
           <button
@@ -499,19 +359,13 @@ async function handleVideoInputChange(event: Event): Promise<void> {
           >
             <span class="entry-sheet__icon"><el-icon><Camera /></el-icon></span>
             <strong>相机</strong>
-            <small>短按拍照，长按摄像，直接带入表单</small>
+            <small>短按拍照，长按录像，直接带入表单</small>
           </button>
 
           <button type="button" class="entry-sheet__button" :disabled="entryBusy" @click="handleWriteText">
             <span class="entry-sheet__icon"><el-icon><EditPen /></el-icon></span>
-            <strong>写文字</strong>
-            <span>直接打开新建表单手动填写</span>
-          </button>
-
-          <button type="button" class="entry-sheet__button" :disabled="entryBusy" @click="handleAiEntry">
-            <span class="entry-sheet__icon"><el-icon><Microphone /></el-icon></span>
-            <strong>AI 录入</strong>
-            <span>本地语音转文字后离线回填账单字段</span>
+            <strong>手动填写</strong>
+            <span>直接打开新建表单手动录入</span>
           </button>
         </div>
         <el-button class="share-target-sheet__cancel" @click="closeEntryDrawer">取消</el-button>

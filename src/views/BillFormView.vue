@@ -131,7 +131,7 @@ function handleSubmit(payload: BillFormPayload): void {
 </script>
 
 <template>
-  <section class="screen">
+  <section class="screen screen--scrollable">
     <BackPageHeader :title="pageTitle" @back="router.back()" />
 
     <el-alert v-if="ingestRecord" title="原始通知" type="info" :closable="false" show-icon>

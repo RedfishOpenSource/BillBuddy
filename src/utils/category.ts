@@ -16,6 +16,11 @@ export interface CategoryOptionGroup {
   options: CategoryOption[]
 }
 
+export interface CategoryTreeGroup {
+  category: Category
+  children: Category[]
+}
+
 function compareCategories(left: Category, right: Category): number {
   return left.sortOrder - right.sortOrder || left.name.localeCompare(right.name, 'zh-CN')
 }
@@ -138,4 +143,8 @@ export function createCategoryOptionGroups(categories: Category[]): CategoryOpti
 
 export function createFlatCategoryOptions(categories: Category[]): CategoryOption[] {
   return createCategoryOptionGroups(categories).flatMap((group) => group.options)
+}
+
+export function createTopLevelCategoryGroups(categories: Category[], type?: CategoryType): CategoryTreeGroup[] {
+  return buildCategoryTree(categories, type).filter((group) => !group.category.parentId)
 }

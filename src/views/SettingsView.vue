@@ -3,7 +3,7 @@ import SettingsPanelContent from '../components/settings/SettingsPanelContent.vu
 </script>
 
 <template>
-  <section class="screen screen--static">
+  <section class="screen screen--static screen--scrollable">
     <SettingsPanelContent />
   </section>
 </template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowDown, Operation, Search, Share } from '@element-plus/icons-vue'
+import { ArrowDown, Operation, Search, Setting, Share } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus'
 import { computed, ref } from 'vue'
@@ -111,6 +111,10 @@ function openFilterDrawer(): void {
   filterDrawerVisible.value = true
 }
 
+function openSettingsDrawer(): void {
+  void router.push({ path: '/bills', query: { drawer: 'settings' } })
+}
+
 function closeFilterDrawer(): void {
   filterDrawerVisible.value = false
   syncDraftFilters()
@@ -197,6 +201,14 @@ async function handleShare(): Promise<void> {
   <section class="screen">
     <div class="bill-search-panel">
       <div class="bill-search-strip">
+        <el-button
+          class="toolbar-icon-button bill-search-strip__settings"
+          text
+          aria-label="打开设置"
+          @click="openSettingsDrawer"
+        >
+          <el-icon><Setting /></el-icon>
+        </el-button>
         <el-input
           v-model="appliedFilters.keyword"
           :prefix-icon="Search"

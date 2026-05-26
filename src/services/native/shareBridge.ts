@@ -42,14 +42,60 @@ export const preferredShareTargets: readonly ShareTargetOption[] = [
   },
 ] as const
 
+function decodeBase64Content(base64Content: string, mimeType: string): Blob {
+  const binary = window.atob(base64Content)
+  const bytes = new Uint8Array(binary.length)
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index)
+  }
+
+  return new Blob([bytes], { type: mimeType })
+}
+
+function buildShareBlob(options: ShareFileOptions): Blob {
+  if (options.base64Content) {
+    return decodeBase64Content(options.base64Content, options.mimeType)
+  }
+
+  return new Blob([options.textContent ?? ''], { type: options.mimeType })
+}
+
 export function isShareBridgeAvailable(): boolean {
   return Capacitor.getPlatform() === 'android'
 }
 
-export function shareFile(options: ShareFileOptions): Promise<ShareFileResult | null> {
-  if (!isShareBridgeAvailable()) {
-    return Promise.resolve(null)
+async function shareWithWebApi(options: ShareFileOptions): Promise<ShareFileResult | null> {
+  if (typeof navigator === 'undefined' || typeof navigator.share !== 'function') {
+    return null
   }
 
-  return BillShare.shareFile(options).catch(() => null)
+  const blob = buildShareBlob(options)
+  const file = new File([blob], options.fileName, { type: options.mimeType })
+
+  if (typeof navigator.canShare === 'function' && !navigator.canShare({ files: [file] })) {
+    return null
+  }
+
+  try {
+    await navigator.share({
+      title: options.title,
+      text: options.textContent,
+      files: [file],
+    })
+    return { sharedVia: 'chooser' }
+  } catch {
+    return null
+  }
+}
+
+export async function shareFile(options: ShareFileOptions): Promise<ShareFileResult | null> {
+  if (isShareBridgeAvailable()) {
+    const shared = await BillShare.shareFile(options).catch(() => null)
+    if (shared) {
+      return shared
+    }
+  }
+
+  return shareWithWebApi(options)
 }

@@ -7,7 +7,7 @@ import type { BillFormPayload } from '../../stores/billStore'
 import type { BillSource, BillVideo } from '../../types/bill'
 import type { Category } from '../../types/category'
 import { resolveBillImageSrc, resolveBillVideoSrc } from '../../utils/billPresentation'
-import { createCategoryOptionGroups } from '../../utils/category'
+import { createTopLevelCategoryGroups, getCategoryDisplayName } from '../../utils/category'
 
 const imageLimit = 6
 const videoLimit = 1
@@ -37,8 +37,20 @@ const videoInputRef = ref<HTMLInputElement | null>(null)
 const pickerVisible = ref(false)
 const pickingImages = ref(false)
 const pickingVideos = ref(false)
+const selectedTopCategoryId = ref('')
 const form = reactive<BillFormPayload>(createFormState(props.initialValue))
-const categoryOptionGroups = computed(() => createCategoryOptionGroups(props.categories))
+
+const topCategoryGroups = computed(() => createTopLevelCategoryGroups(props.categories))
+const selectedTopCategory = computed(
+  () => topCategoryGroups.value.find((group) => group.category.id === selectedTopCategoryId.value) ?? null,
+)
+const categoryOptions = computed(() => {
+  if (!selectedTopCategory.value) {
+    return []
+  }
+
+  return [selectedTopCategory.value.category, ...selectedTopCategory.value.children]
+})
 const sourceOptions: Array<{ label: string; value: BillSource }> = [
   { label: '手动', value: 'manual' },
   { label: '微信', value: 'wechat' },
@@ -47,9 +59,40 @@ const sourceOptions: Array<{ label: string; value: BillSource }> = [
 
 watch(
   () => props.initialValue,
-  (value) => Object.assign(form, createFormState(value)),
-  { deep: true },
+  (value) => {
+    Object.assign(form, createFormState(value))
+    syncSelectedTopCategory(value.categoryId)
+  },
+  { deep: true, immediate: true },
 )
+
+watch(
+  () => props.categories,
+  () => {
+    syncSelectedTopCategory(form.categoryId)
+  },
+  { deep: true, immediate: true },
+)
+
+watch(selectedTopCategoryId, (topCategoryId) => {
+  if (!topCategoryId) {
+    return
+  }
+
+  const group = topCategoryGroups.value.find((item) => item.category.id === topCategoryId)
+  if (!group) {
+    return
+  }
+
+  const current = props.categories.find((category) => category.id === form.categoryId)
+  const belongsToGroup = current
+    ? current.id === group.category.id || current.parentId === group.category.id
+    : false
+
+  if (!belongsToGroup) {
+    form.categoryId = group.category.id
+  }
+})
 
 const rules: FormRules<BillFormPayload> = {
   categoryId: [{ required: true, message: '请选择分类', trigger: 'change' }],
@@ -60,6 +103,12 @@ const rules: FormRules<BillFormPayload> = {
 const imagePreviewList = computed(() => form.images.map((image) => resolveBillImageSrc(image)))
 const remainingImageCount = computed(() => Math.max(imageLimit - form.images.length, 0))
 const remainingVideoCount = computed(() => Math.max(videoLimit - (form.videos?.length ?? 0), 0))
+
+function syncSelectedTopCategory(categoryId: string): void {
+  const current = props.categories.find((category) => category.id === categoryId)
+  const topCategoryId = current?.parentId ?? current?.id ?? topCategoryGroups.value[0]?.category.id ?? ''
+  selectedTopCategoryId.value = topCategoryId
+}
 
 function removeImage(imageId: string): void {
   const index = form.images.findIndex((image) => image.id === imageId)
@@ -132,6 +181,10 @@ function openVideoPicker(): void {
   videoInputRef.value?.click()
 }
 
+function selectTopCategory(categoryId: string): void {
+  selectedTopCategoryId.value = categoryId
+}
+
 async function handleFileChange(event: Event): Promise<void> {
   const input = event.target as HTMLInputElement
   const files = input.files
@@ -195,11 +248,27 @@ async function handleSubmit(): Promise<void> {
       </el-form-item>
 
       <el-form-item label="分类" prop="categoryId">
-        <el-select v-model="form.categoryId" placeholder="选择分类" filterable>
-          <el-option-group v-for="group in categoryOptionGroups" :key="group.label" :label="group.label">
-            <el-option v-for="option in group.options" :key="option.id" :label="option.label" :value="option.id" />
-          </el-option-group>
-        </el-select>
+        <div class="bill-form__category-picker">
+          <div class="bill-form__category-tabs">
+            <el-button
+              v-for="group in topCategoryGroups"
+              :key="group.category.id"
+              plain
+              :class="{ 'is-active': selectedTopCategoryId === group.category.id }"
+              @click="selectTopCategory(group.category.id)"
+            >
+              {{ group.category.icon }} {{ group.category.name }}
+            </el-button>
+          </div>
+          <el-select v-model="form.categoryId" placeholder="选择分类" filterable>
+            <el-option
+              v-for="option in categoryOptions"
+              :key="option.id"
+              :label="getCategoryDisplayName(option, props.categories)"
+              :value="option.id"
+            />
+          </el-select>
+        </div>
       </el-form-item>
 
       <el-form-item label="金额" prop="amount">
@@ -272,7 +341,7 @@ async function handleSubmit(): Promise<void> {
           <div v-else class="bill-form__image-empty bill-form__video-empty">
             <el-icon><VideoCamera /></el-icon>
             <strong>添加商品视频</strong>
-            <span>可添加开箱、收据录屏等短视频</span>
+            <span>可添加开箱、收录屏等短视频</span>
           </div>
         </div>
       </el-form-item>

@@ -60,7 +60,7 @@ async function handleDelete(): Promise<void> {
   <section v-if="bill" class="screen">
     <BackPageHeader eyebrow="账单详情" :title="displayTitle" @back="router.back()">
       <template #actions>
-        <el-button circle :icon="MoreFilled" @click="actionDrawerVisible = true" />
+        <el-button class="back-page-header__action-button" circle :icon="MoreFilled" @click="actionDrawerVisible = true" />
       </template>
     </BackPageHeader>
 
