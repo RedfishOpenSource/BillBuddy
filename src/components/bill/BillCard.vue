@@ -2,17 +2,26 @@
 import { computed } from 'vue'
 import type { Bill } from '../../types/bill'
 import type { Category } from '../../types/category'
+import { getCategoryDisplayName } from '../../utils/category'
 import { formatCurrency, formatDate, formatSourceLabel } from '../../utils/format'
 import { getBillDisplayTitle } from '../../utils/billPresentation'
 
 const props = defineProps<{
   bill: Bill
   category: Category | null
+  categories?: Category[]
   clickable?: boolean
 }>()
 
 const amountClass = computed(() => (props.category?.type === 'income' ? 'is-income' : 'is-expense'))
 const displayTitle = computed(() => getBillDisplayTitle(props.bill, props.category))
+const categoryLabel = computed(() => {
+  if (!props.category) {
+    return '未分类'
+  }
+
+  return getCategoryDisplayName(props.category, props.categories ?? [props.category]) || props.category.name
+})
 </script>
 
 <template>
@@ -25,7 +34,7 @@ const displayTitle = computed(() => getBillDisplayTitle(props.bill, props.catego
         <div>
           <h3>{{ displayTitle }}</h3>
           <div class="bill-card__labels">
-            <el-tag size="small" effect="plain">{{ category?.name ?? '未分类' }}</el-tag>
+            <el-tag size="small" effect="plain">{{ categoryLabel }}</el-tag>
             <el-tag size="small" type="info" effect="plain">{{ formatSourceLabel(bill.source) }}</el-tag>
             <el-tag v-if="bill.images.length" size="small" type="success" effect="plain">{{ bill.images.length }} 张图片</el-tag>
           </div>

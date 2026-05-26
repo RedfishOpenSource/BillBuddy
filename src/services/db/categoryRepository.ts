@@ -1,32 +1,48 @@
 import { defaultCategories } from '../../data/defaultCategories'
 import type { Category } from '../../types/category'
+import { getCategoryDescendantIds, isChildCategory, sortCategories } from '../../utils/category'
 import { storageKeys } from './keys'
 import { readCollection, writeCollection } from './storage'
 
-const requiredCategoryIds = new Set(['other-income'])
+function getStringValue(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
 
 function normalizeCategories(categories: Category[]): Category[] {
-  const normalizedCategories = categories
+  const mergedCategories = categories
     .filter((category) => category.id !== 'transfer')
     .map(
       (category): Category => ({
         ...category,
         type: category.type === 'income' ? 'income' : 'expense',
+        parentId: getStringValue(category.parentId) || undefined,
       }),
     )
 
   defaultCategories.forEach((category) => {
-    if (!requiredCategoryIds.has(category.id)) {
-      return
-    }
-
-    const exists = normalizedCategories.some((item) => item.id === category.id)
+    const exists = mergedCategories.some((item) => item.id === category.id)
     if (!exists) {
-      normalizedCategories.push(category)
+      mergedCategories.push(category)
     }
   })
 
-  return normalizedCategories.sort((left, right) => left.sortOrder - right.sortOrder)
+  const categoryMap = new Map(mergedCategories.map((category) => [category.id, category]))
+
+  return sortCategories(
+    mergedCategories.map((category) => {
+      const parentId = category.parentId
+      const parent = parentId ? categoryMap.get(parentId) : null
+
+      if (!parent || parent.id === category.id || isChildCategory(parent)) {
+        return {
+          ...category,
+          parentId: undefined,
+        }
+      }
+
+      return category
+    }),
+  )
 }
 
 function hasLegacyTransferCategory(categories: Category[]): boolean {
@@ -77,6 +93,7 @@ export function upsertCategory(category: Category) {
 }
 
 export function removeCategory(categoryId: string) {
-  const categories = listCategories().filter((item) => item.id !== categoryId)
-  return saveCategories(categories)
+  const categories = listCategories()
+  const descendantIds = new Set(getCategoryDescendantIds(categoryId, categories))
+  return saveCategories(categories.filter((item) => !descendantIds.has(item.id)))
 }

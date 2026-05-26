@@ -17,6 +17,7 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 public class BillNotificationListenerService extends NotificationListenerService {
     public static final String ACTION_BILL_NOTIFICATION = "com.redfishopensource.billbuddy.BILL_NOTIFICATION_EVENT";
@@ -32,6 +33,30 @@ public class BillNotificationListenerService extends NotificationListenerService
             "com.tencent.mm",
             "com.eg.android.AlipayGphone"
     ));
+    private static final Pattern AMOUNT_PATTERN = Pattern.compile(
+            "(?:[¥￥]\\s*\\d+(?:\\.\\d{1,2})?|\\d+(?:\\.\\d{1,2})?\\s*元|金额[:：\\s]*\\d+(?:\\.\\d{1,2})?)",
+            Pattern.CASE_INSENSITIVE
+    );
+    private static final Pattern BILL_NO_PATTERN = Pattern.compile(
+            "(?:交易单号|订单号|商户单号|转账单号|收款单号|账单编号)[:：\\s]*[A-Za-z0-9_-]{6,}",
+            Pattern.CASE_INSENSITIVE
+    );
+    private static final Pattern WECHAT_TITLE_PATTERN = Pattern.compile(
+            "(微信支付|微信收款|微信转账|收款到账通知|转账收款|付款成功|支付成功)",
+            Pattern.CASE_INSENSITIVE
+    );
+    private static final Pattern WECHAT_TEXT_PATTERN = Pattern.compile(
+            "(向.+付款|向你转账|收到转账|微信支付|微信转账|收款到账|付款成功|支付成功|商户单号|交易单号|二维码收款|退款)",
+            Pattern.CASE_INSENSITIVE
+    );
+    private static final Pattern ALIPAY_TITLE_PATTERN = Pattern.compile(
+            "(付款成功|支付成功|收钱到账|收款到账|转账提醒|转账成功|退款成功|入账提醒)",
+            Pattern.CASE_INSENSITIVE
+    );
+    private static final Pattern ALIPAY_TEXT_PATTERN = Pattern.compile(
+            "(支付宝支出|支付宝收入|向.+付款|向你转账|收钱到账|收款到账|交易成功|付款成功|支付成功|订单号|交易单号|商户单号|NFC支付|退款成功)",
+            Pattern.CASE_INSENSITIVE
+    );
 
     @Override
     public void onNotificationPosted(StatusBarNotification sbn) {
@@ -48,6 +73,10 @@ public class BillNotificationListenerService extends NotificationListenerService
         String safeText = extractText(notification);
 
         if (safeTitle.isEmpty() && safeText.isEmpty()) {
+            return;
+        }
+
+        if (!isPaymentNotification(sbn.getPackageName(), safeTitle, safeText)) {
             return;
         }
 
@@ -167,6 +196,27 @@ public class BillNotificationListenerService extends NotificationListenerService
         }
 
         return "";
+    }
+
+    private static boolean isPaymentNotification(String packageName, String title, String text) {
+        String normalizedText = normalizeNotificationText(title, text);
+        if (!AMOUNT_PATTERN.matcher(normalizedText).find() && !BILL_NO_PATTERN.matcher(normalizedText).find()) {
+            return false;
+        }
+
+        if (packageName.contains("tencent.mm")) {
+            return WECHAT_TITLE_PATTERN.matcher(title).find() || WECHAT_TEXT_PATTERN.matcher(normalizedText).find();
+        }
+
+        if (packageName.toLowerCase(Locale.ROOT).contains("alipay")) {
+            return ALIPAY_TITLE_PATTERN.matcher(title).find() || ALIPAY_TEXT_PATTERN.matcher(normalizedText).find();
+        }
+
+        return false;
+    }
+
+    private static String normalizeNotificationText(String title, String text) {
+        return (title + " " + text).replaceAll("\\s+", " ").trim();
     }
 
     private String formatIsoNow() {

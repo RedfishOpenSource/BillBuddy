@@ -24,6 +24,7 @@ const pendingRecords = computed(() => ingestStore.pendingRecords)
         :key="record.id"
         :record="record"
         :category="categoryStore.getCategoryById(record.draft?.categoryId ?? '')"
+        :categories="categoryStore.sortedCategories"
         @review="router.push(`/bill/new?ingest=${record.id}`)"
         @dismiss="ingestStore.dismissRecord(record.id)"
       />

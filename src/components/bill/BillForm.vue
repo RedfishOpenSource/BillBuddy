@@ -7,6 +7,7 @@ import type { BillFormPayload } from '../../stores/billStore'
 import type { BillSource, BillVideo } from '../../types/bill'
 import type { Category } from '../../types/category'
 import { resolveBillImageSrc, resolveBillVideoSrc } from '../../utils/billPresentation'
+import { createCategoryOptionGroups } from '../../utils/category'
 
 const imageLimit = 6
 const videoLimit = 1
@@ -37,6 +38,7 @@ const pickerVisible = ref(false)
 const pickingImages = ref(false)
 const pickingVideos = ref(false)
 const form = reactive<BillFormPayload>(createFormState(props.initialValue))
+const categoryOptionGroups = computed(() => createCategoryOptionGroups(props.categories))
 const sourceOptions: Array<{ label: string; value: BillSource }> = [
   { label: '手动', value: 'manual' },
   { label: '微信', value: 'wechat' },
@@ -91,7 +93,7 @@ function appendImages(images: BillFormPayload['images']): void {
   form.images.push(...acceptedImages)
 
   if (acceptedImages.length < images.length) {
-    ElMessage.warning(`最多上传 ${imageLimit} 张图片，已自动截取前 ${acceptedImages.length} 张`)
+    ElMessage.warning(`最多上传 ${imageLimit} 张图片，已自动保留前 ${acceptedImages.length} 张`)
   }
 }
 
@@ -191,34 +193,38 @@ async function handleSubmit(): Promise<void> {
       <el-form-item label="来源">
         <el-segmented v-model="form.source" :options="sourceOptions" />
       </el-form-item>
+
       <el-form-item label="分类" prop="categoryId">
-        <el-select v-model="form.categoryId" placeholder="选择分类">
-          <el-option
-            v-for="category in categories"
-            :key="category.id"
-            :label="`${category.icon} ${category.name}`"
-            :value="category.id"
-          />
+        <el-select v-model="form.categoryId" placeholder="选择分类" filterable>
+          <el-option-group v-for="group in categoryOptionGroups" :key="group.label" :label="group.label">
+            <el-option v-for="option in group.options" :key="option.id" :label="option.label" :value="option.id" />
+          </el-option-group>
         </el-select>
       </el-form-item>
+
       <el-form-item label="金额" prop="amount">
         <el-input-number v-model="form.amount" :min="0" :precision="2" :controls="false" />
       </el-form-item>
+
       <el-form-item label="账单编号">
         <el-input v-model="form.billNo" placeholder="可留空" />
       </el-form-item>
+
       <el-form-item label="账单日期" prop="billDate">
         <el-date-picker v-model="form.billDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" />
       </el-form-item>
+
       <el-form-item label="补充描述" class="is-span-2">
         <el-input v-model="form.description" type="textarea" :rows="4" placeholder="可写入门店、场景、备注等信息" />
       </el-form-item>
-      <el-form-item label="商品照片" class="is-span-2">
+
+      <el-form-item label="票据图片" class="is-span-2">
         <div class="bill-form__image-panel">
           <div class="bill-form__image-toolbar">
             <el-button type="primary" plain :icon="Plus" @click="pickerVisible = true">添加图片</el-button>
             <span class="bill-form__image-hint">已添加 {{ form.images.length }} / {{ imageLimit }} 张</span>
           </div>
+
           <div v-if="form.images.length" class="bill-form__image-grid">
             <div v-for="(image, index) in form.images" :key="image.id" class="bill-form__image-card">
               <el-image
@@ -235,12 +241,14 @@ async function handleSubmit(): Promise<void> {
               <span class="bill-form__image-name">{{ image.name }}</span>
             </div>
           </div>
+
           <div v-else class="bill-form__image-empty">
             <el-icon><Picture /></el-icon>
             <span>可添加发票、订单截图、收据照片等多张图片</span>
           </div>
         </div>
       </el-form-item>
+
       <el-form-item label="商品视频" class="is-span-2">
         <div class="bill-form__image-panel bill-form__video-panel">
           <div class="bill-form__image-toolbar bill-form__video-toolbar">
@@ -250,6 +258,7 @@ async function handleSubmit(): Promise<void> {
             </div>
             <span class="bill-form__video-badge">支持短视频预览</span>
           </div>
+
           <div v-if="form.videos?.length" class="bill-form__video-grid">
             <div v-for="video in form.videos" :key="video.id" class="bill-form__video-card">
               <video :src="resolveBillVideoSrc(video)" controls preload="metadata" class="bill-form__video" />
@@ -259,17 +268,20 @@ async function handleSubmit(): Promise<void> {
               <span class="bill-form__image-name">{{ video.name }}</span>
             </div>
           </div>
+
           <div v-else class="bill-form__image-empty bill-form__video-empty">
             <el-icon><VideoCamera /></el-icon>
             <strong>添加商品视频</strong>
-            <span>可添加商品开箱、收据录屏等短视频</span>
+            <span>可添加开箱、收据录屏等短视频</span>
           </div>
         </div>
       </el-form-item>
     </div>
+
     <input ref="cameraInputRef" style="display: none" type="file" accept="image/*" capture="environment" @change="handleFileChange" />
     <input ref="galleryInputRef" style="display: none" type="file" accept="image/*" multiple @change="handleFileChange" />
     <input ref="videoInputRef" style="display: none" type="file" accept="video/*" capture="environment" @change="handleVideoChange" />
+
     <el-button type="primary" class="bill-form__submit" @click="handleSubmit">
       {{ submitLabel ?? '保存账单' }}
     </el-button>

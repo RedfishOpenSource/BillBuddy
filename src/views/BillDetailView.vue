@@ -6,6 +6,7 @@ import { useRoute, useRouter } from 'vue-router'
 import BackPageHeader from '../components/BackPageHeader.vue'
 import { useBillStore } from '../stores/billStore'
 import { useCategoryStore } from '../stores/categoryStore'
+import { getCategoryDisplayName } from '../utils/category'
 import { formatCurrency, formatDate, formatSourceLabel } from '../utils/format'
 import {
   getBillDisplayTitle,
@@ -23,8 +24,9 @@ const actionDrawerVisible = ref(false)
 
 const billId = computed(() => (typeof route.params.id === 'string' ? route.params.id : ''))
 const bill = computed(() => billStore.bills.find((item) => item.id === billId.value) ?? null)
-const category = computed(() =>
-  bill.value ? categoryStore.getCategoryById(bill.value.categoryId) : null,
+const category = computed(() => (bill.value ? categoryStore.getCategoryById(bill.value.categoryId) : null))
+const categoryLabel = computed(() =>
+  getCategoryDisplayName(category.value, categoryStore.sortedCategories) || '未分类',
 )
 const displayTitle = computed(() => (bill.value ? getBillDisplayTitle(bill.value, category.value) : '账单详情'))
 const imagePreviewList = computed(() => bill.value?.images.map((image) => resolveBillImageSrc(image)) ?? [])
@@ -68,7 +70,7 @@ async function handleDelete(): Promise<void> {
       </span>
       <strong>{{ formatCurrency(bill.amount) }}</strong>
       <div class="page-actions">
-        <el-tag effect="plain">{{ category?.name ?? '未分类' }}</el-tag>
+        <el-tag effect="plain">{{ categoryLabel }}</el-tag>
         <el-tag type="info" effect="plain">{{ formatSourceLabel(bill.source) }}</el-tag>
         <el-tag v-if="bill.images.length" type="success" effect="plain">{{ getBillImageCountText(bill.images) }}</el-tag>
         <el-tag v-if="bill.videos?.length" type="warning" effect="plain">{{ getBillVideoCountText(bill.videos) }}</el-tag>
@@ -123,6 +125,7 @@ async function handleDelete(): Promise<void> {
       <el-descriptions :column="1" border>
         <el-descriptions-item label="账单日期">{{ formatDate(bill.billDate) }}</el-descriptions-item>
         <el-descriptions-item label="账单编号">{{ bill.billNo || '未填写' }}</el-descriptions-item>
+        <el-descriptions-item label="分类">{{ categoryLabel }}</el-descriptions-item>
         <el-descriptions-item label="补充描述">{{ bill.description || '无' }}</el-descriptions-item>
         <el-descriptions-item label="图片数量">{{ getBillImageCountText(bill.images) }}</el-descriptions-item>
         <el-descriptions-item label="视频数量">{{ getBillVideoCountText(bill.videos ?? []) }}</el-descriptions-item>

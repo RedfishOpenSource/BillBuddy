@@ -1,5 +1,6 @@
 import dayjs from 'dayjs'
 import type { Category } from '../../types/category'
+import { sortCategories } from '../../utils/category'
 import { extractAmount, extractBillDate, extractBillNo, inferBillSummary } from '../ingest/parsers/shared'
 import { localAiBillModel } from './localAiBillModel'
 import type { PendingNewBillDraft } from './newBillDraftSession'
@@ -14,8 +15,11 @@ function includesAny(text: string, keywords: readonly string[]): boolean {
 
 function inferCategoryId(text: string, categories: Category[]): string {
   const normalizedText = text.toLowerCase()
+  const prioritizedCategories = [...sortCategories(categories)].sort(
+    (left, right) => Number(Boolean(right.parentId)) - Number(Boolean(left.parentId)),
+  )
 
-  for (const category of categories) {
+  for (const category of prioritizedCategories) {
     if (normalizedText.includes(category.name.toLowerCase())) {
       return category.id
     }

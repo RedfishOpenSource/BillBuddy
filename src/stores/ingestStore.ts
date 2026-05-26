@@ -78,6 +78,10 @@ export const useIngestStore = defineStore('ingest', {
     },
     receiveNotification(payload: NotificationPayload) {
       const record = parseNotificationToRecord(payload)
+      if (record.parsedStatus === 'ignored') {
+        return record
+      }
+
       this.records = upsertIngestRecord(record)
       return record
     },

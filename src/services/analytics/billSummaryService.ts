@@ -1,6 +1,7 @@
 import dayjs from 'dayjs'
 import type { Bill, BillFilters, BillSort } from '../../types/bill'
 import type { Category } from '../../types/category'
+import { getCategoryDescendantIds, getCategoryDisplayName } from '../../utils/category'
 
 export interface SummaryMetrics {
   income: number
@@ -36,10 +37,13 @@ export function createEmptyFilters(): BillFilters {
 
 export function filterBills(bills: Bill[], filters: BillFilters, categories: Category[] = []): Bill[] {
   const keyword = filters.keyword.trim().toLowerCase()
-  const categoryNameMap = new Map(categories.map((item) => [item.id, item.name]))
+  const categoryNameMap = new Map(categories.map((item) => [item.id, getCategoryDisplayName(item, categories)]))
+  const selectedCategoryIds = filters.categoryId
+    ? new Set(getCategoryDescendantIds(filters.categoryId, categories))
+    : null
 
   return bills.filter((bill) => {
-    if (filters.categoryId && bill.categoryId !== filters.categoryId) return false
+    if (selectedCategoryIds && !selectedCategoryIds.has(bill.categoryId)) return false
     if (filters.startDate && dayjs(bill.billDate).isBefore(dayjs(filters.startDate), 'day')) return false
     if (filters.endDate && dayjs(bill.billDate).isAfter(dayjs(filters.endDate), 'day')) return false
 
@@ -123,7 +127,7 @@ export function buildCategorySummary(bills: Bill[], categories: Category[]): Cat
 
     const current = bucket.get(category.id) ?? {
       categoryId: category.id,
-      name: category.name,
+      name: getCategoryDisplayName(category, categories),
       type: category.type,
       color: category.color,
       amount: 0,

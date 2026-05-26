@@ -74,6 +74,10 @@ const activeTabPath = computed(function (): string {
   return matchedTab?.path ?? ''
 })
 
+const isOverviewRoute = computed(function (): boolean {
+  return activeTabPath.value === '/home'
+})
+
 const entryBusy = computed(function (): boolean {
   return handlingEntry.value || handlingSpeech.value
 })
@@ -116,7 +120,7 @@ function closeSettingsDrawer(): void {
 }
 
 function handleShellTouchStart(event: TouchEvent): void {
-  if (!event.touches.length) {
+  if (isOverviewRoute.value || !event.touches.length) {
     return
   }
 
@@ -126,7 +130,7 @@ function handleShellTouchStart(event: TouchEvent): void {
 }
 
 function handleShellTouchEnd(event: TouchEvent): void {
-  if (settingsDrawerVisible.value || !event.changedTouches.length) {
+  if (isOverviewRoute.value || settingsDrawerVisible.value || !event.changedTouches.length) {
     return
   }
 
@@ -407,7 +411,7 @@ async function handleVideoInputChange(event: Event): Promise<void> {
 
 <template>
   <div class="app-shell" @touchstart.passive="handleShellTouchStart" @touchend.passive="handleShellTouchEnd">
-    <main class="app-shell__body">
+    <main class="app-shell__body" :class="{ 'app-shell__body--locked': isOverviewRoute }">
       <router-view />
     </main>
 

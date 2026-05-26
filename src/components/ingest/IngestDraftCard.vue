@@ -2,11 +2,13 @@
 import { computed } from 'vue'
 import type { Category } from '../../types/category'
 import type { IngestRecord } from '../../types/ingest'
+import { getCategoryDisplayName } from '../../utils/category'
 import { formatCurrency, formatDate } from '../../utils/format'
 
 const props = defineProps<{
   record: IngestRecord
   category: Category | null
+  categories?: Category[]
 }>()
 
 const emit = defineEmits<{
@@ -43,6 +45,13 @@ const parsedTagLabel = computed(() => {
 })
 
 const displayTitle = computed(() => props.record.draft?.description || props.record.notificationTitle)
+const categoryLabel = computed(() => {
+  if (!props.category) {
+    return '其他'
+  }
+
+  return getCategoryDisplayName(props.category, props.categories ?? [props.category]) || props.category.name
+})
 </script>
 
 <template>
@@ -60,7 +69,7 @@ const displayTitle = computed(() => props.record.draft?.description || props.rec
     <div class="ingest-card__body">
       <div>
         <span>建议分类</span>
-        <strong>{{ category?.icon }} {{ category?.name ?? '其他' }}</strong>
+        <strong>{{ category?.icon }} {{ categoryLabel }}</strong>
       </div>
       <div>
         <span>建议金额</span>

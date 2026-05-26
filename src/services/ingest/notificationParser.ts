@@ -1,6 +1,6 @@
 import type { IngestRecord, NotificationPayload } from '../../types/ingest'
 import { createId } from '../../utils/id'
-import { detectSourceApp } from './notificationNormalizer'
+import { detectSourceApp, isPaymentNotificationPayload } from './notificationNormalizer'
 import { parseAlipayNotification } from './parsers/alipayParser'
 import { parseWechatNotification } from './parsers/wechatParser'
 
@@ -9,13 +9,25 @@ export function parseNotificationToRecord(payload: NotificationPayload): IngestR
   const receivedAt = payload.receivedAt ?? new Date().toISOString()
   const normalizedPayload = { ...payload, receivedAt }
 
-  let draft: IngestRecord['draft'] = null
-
-  if (sourceApp === 'wechat') {
-    draft = parseWechatNotification(normalizedPayload)
-  } else if (sourceApp === 'alipay') {
-    draft = parseAlipayNotification(normalizedPayload)
+  if (!isPaymentNotificationPayload(normalizedPayload)) {
+    return {
+      id: createId('ingest'),
+      sourceApp,
+      notificationTitle: payload.title,
+      notificationText: payload.text,
+      receivedAt,
+      parsedStatus: 'ignored',
+      matchedBillId: '',
+      draft: null,
+      errorMessage: '已忽略非支付类通知',
+    }
   }
+
+  const draft = sourceApp === 'wechat'
+    ? parseWechatNotification(normalizedPayload)
+    : sourceApp === 'alipay'
+      ? parseAlipayNotification(normalizedPayload)
+      : null
 
   const parsedStatus = !draft ? 'ignored' : draft.confidence >= 0.8 ? 'parsed' : 'needs_review'
 

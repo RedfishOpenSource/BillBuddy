@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowDown, MoreFilled, Operation, Search } from '@element-plus/icons-vue'
+import { ArrowDown, Operation, Search, Share } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus'
 import { computed, ref } from 'vue'
@@ -13,13 +13,13 @@ import {
 } from '../services/analytics/billSummaryService'
 import {
   downloadPreparedShareFile,
-  getShareResultMessage,
   prepareBillsShareFile,
 } from '../services/analytics/shareReportService'
-import { preferredShareTargets, shareFile } from '../services/native/shareBridge'
+import { shareFile } from '../services/native/shareBridge'
 import { useBillStore } from '../stores/billStore'
 import { useCategoryStore } from '../stores/categoryStore'
 import type { BillFilters, BillSort } from '../types/bill'
+import { createFlatCategoryOptions, getCategoryDisplayName } from '../utils/category'
 
 const router = useRouter()
 const billStore = useBillStore()
@@ -27,9 +27,9 @@ const categoryStore = useCategoryStore()
 const appliedFilters = ref(createEmptyFilters())
 const draftFilters = ref(createEmptyFilters())
 const filterDrawerVisible = ref(false)
-const shareActionDrawerVisible = ref(false)
 const sharing = ref(false)
 
+const categoryOptions = computed(() => createFlatCategoryOptions(categoryStore.sortedCategories))
 const visibleBills = computed(() =>
   sortBills(
     filterBills(billStore.bills, appliedFilters.value, categoryStore.sortedCategories),
@@ -47,19 +47,19 @@ const activeFilterCount = computed(() => {
 })
 
 const selectedCategoryLabel = computed(() =>
-  categoryStore.getCategoryById(appliedFilters.value.categoryId)?.name ?? '全部分类',
+  getCategoryDisplayName(appliedFilters.value.categoryId, categoryStore.sortedCategories) || '全部分类',
 )
 
 const selectedSortLabel = computed(() => {
   switch (appliedFilters.value.sortBy) {
     case 'date_asc':
-      return '最早在前'
+      return '日期从早到晚'
     case 'amount_desc':
       return '金额从高到低'
     case 'amount_asc':
       return '金额从低到高'
     default:
-      return '最新在前'
+      return '日期从新到旧'
   }
 })
 
@@ -157,34 +157,33 @@ function handleDateCommand(command: string | number): void {
   }
 }
 
-async function handleShare(targetPackage: string, targetLabel: string): Promise<void> {
+async function handleShare(): Promise<void> {
   if (!visibleBills.value.length) {
     ElMessage.warning('当前没有可分享的账单')
     return
   }
 
   sharing.value = true
-  shareActionDrawerVisible.value = false
 
   try {
-    const file = await prepareBillsShareFile('pdf', `账单分享-${new Date().toISOString().slice(0, 10)}`, {
+    const file = await prepareBillsShareFile(`pdf`, `账单分享-${new Date().toISOString().slice(0, 10)}`, {
       title: '账单分享',
       filters: appliedFilters.value,
       bills: visibleBills.value,
       categories: categoryStore.sortedCategories,
     })
+
     const shared = await shareFile({
       ...file,
-      title: `分享到${targetLabel}`,
-      targetPackage,
+      title: '分享账单',
       preferChooser: true,
     })
 
     if (shared) {
-      ElMessage.success(getShareResultMessage(shared.sharedVia, targetLabel))
+      ElMessage.success('已打开系统分享')
     } else {
       downloadPreparedShareFile(file)
-      ElMessage.success(getShareResultMessage('download', targetLabel))
+      ElMessage.success('分享文件已导出')
     }
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '分享失败，请稍后重试')
@@ -204,8 +203,14 @@ async function handleShare(targetPackage: string, targetLabel: string): Promise<
           placeholder="搜索账单描述、编号、通知内容"
           clearable
         />
-        <el-button class="toolbar-icon-button bill-search-strip__more" text aria-label="分享方式" @click="shareActionDrawerVisible = true">
-          <el-icon><MoreFilled /></el-icon>
+        <el-button
+          class="toolbar-icon-button bill-search-strip__more"
+          text
+          :loading="sharing"
+          aria-label="分享账单"
+          @click="handleShare"
+        >
+          <el-icon><Share /></el-icon>
         </el-button>
       </div>
 
@@ -218,8 +223,8 @@ async function handleShare(targetPackage: string, targetLabel: string): Promise<
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item command="">全部分类</el-dropdown-item>
-              <el-dropdown-item v-for="category in categoryStore.sortedCategories" :key="category.id" :command="category.id">
-                {{ category.name }}
+              <el-dropdown-item v-for="category in categoryOptions" :key="category.id" :command="category.id">
+                {{ category.label }}
               </el-dropdown-item>
             </el-dropdown-menu>
           </template>
@@ -251,8 +256,8 @@ async function handleShare(targetPackage: string, targetLabel: string): Promise<
           </button>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="date_desc">最新在前</el-dropdown-item>
-              <el-dropdown-item command="date_asc">最早在前</el-dropdown-item>
+              <el-dropdown-item command="date_desc">日期从新到旧</el-dropdown-item>
+              <el-dropdown-item command="date_asc">日期从早到晚</el-dropdown-item>
               <el-dropdown-item command="amount_desc">金额从高到低</el-dropdown-item>
               <el-dropdown-item command="amount_asc">金额从低到高</el-dropdown-item>
             </el-dropdown-menu>
@@ -279,7 +284,12 @@ async function handleShare(targetPackage: string, targetLabel: string): Promise<
         class="unstyled-button"
         @click="router.push(`/bill/${bill.id}`)"
       >
-        <BillCard :bill="bill" :category="categoryStore.getCategoryById(bill.categoryId)" clickable />
+        <BillCard
+          :bill="bill"
+          :category="categoryStore.getCategoryById(bill.categoryId)"
+          :categories="categoryStore.sortedCategories"
+          clickable
+        />
       </button>
     </div>
     <el-empty v-else description="当前筛选条件下没有账单。" />
@@ -298,32 +308,6 @@ async function handleShare(targetPackage: string, targetLabel: string): Promise<
           <el-button @click="closeFilterDrawer">取消</el-button>
           <el-button type="primary" @click="applyFilterDrawer">确认</el-button>
         </div>
-      </div>
-    </el-drawer>
-
-    <el-drawer v-model="shareActionDrawerVisible" direction="btt" size="auto" :with-header="false" append-to-body>
-      <div class="action-sheet share-target-sheet">
-        <div class="share-target-sheet__header">
-          <span class="eyebrow">分享账单</span>
-          <h3>选择分享方式</h3>
-          <p>优先尝试打开对应应用；若目标应用不支持当前格式，会回退到系统分享。</p>
-        </div>
-        <div class="share-target-sheet__row">
-          <el-button
-            v-for="target in preferredShareTargets"
-            :key="target.targetPackage"
-            class="share-target-card"
-            :loading="sharing"
-            @click="handleShare(target.targetPackage, target.label)"
-          >
-            <span class="share-target-card__badge">{{ target.shortLabel }}</span>
-            <span class="share-target-card__content">
-              <strong>{{ target.label }}</strong>
-              <small>{{ target.description }}</small>
-            </span>
-          </el-button>
-        </div>
-        <el-button class="share-target-sheet__cancel" @click="shareActionDrawerVisible = false">取消</el-button>
       </div>
     </el-drawer>
   </section>

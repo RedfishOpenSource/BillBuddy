@@ -2,6 +2,7 @@ import jsPDF from 'jspdf'
 import * as XLSX from 'xlsx'
 import type { Bill, BillFilters, BillImage, BillSort, BillStatus } from '../../types/bill'
 import type { Category } from '../../types/category'
+import { getCategoryDisplayName } from '../../utils/category'
 import { resolveBillImageSrc } from '../../utils/billPresentation'
 import { formatCurrency, formatDate, formatSourceLabel } from '../../utils/format'
 import type { CategorySummaryItem, SummaryMetrics, TrendPoint } from './billSummaryService'
@@ -133,7 +134,7 @@ function loadImageElement(src: string): Promise<HTMLImageElement> {
 }
 
 function createCategoryMap(categories: Category[]): Map<string, string> {
-  return new Map(categories.map((category) => [category.id, category.name]))
+  return new Map(categories.map((category) => [category.id, getCategoryDisplayName(category, categories)]))
 }
 
 function getBillStatusLabel(status: BillStatus): string {
