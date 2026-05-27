@@ -179,6 +179,12 @@ function formatImageSize(size: number): string {
 }
 
 function getBillExportTitle(bill: Bill, categoryName: string): string {
+  const purpose = normalizeText(bill.purpose ?? '')
+
+  if (purpose) {
+    return purpose.replace(/\n/g, ' ')
+  }
+
   const description = normalizeText(bill.description)
 
   if (description) {

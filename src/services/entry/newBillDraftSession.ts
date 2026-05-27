@@ -7,6 +7,7 @@ export interface PendingNewBillDraft {
   source?: BillSource
   categoryId?: string
   amount?: number
+  purpose?: string
   billNo?: string
   description?: string
   images?: BillImage[]

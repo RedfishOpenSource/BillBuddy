@@ -117,12 +117,14 @@ function resolveBillDescription(record: LegacyBillRecord): string {
 
 export function normalizeBill(record: LegacyBillRecord): Bill {
   const now = new Date().toISOString()
+  const purpose = getTrimmedString(record.purpose)
 
   return {
     id: getStringValue(record.id) || createId('bill'),
     source: isBillSource(record.source) ? record.source : 'manual',
     categoryId: normalizeCategoryId(record.categoryId),
     amount: clampAmount(Number(record.amount ?? 0)),
+    purpose: purpose || undefined,
     billNo: getStringValue(record.billNo),
     description: resolveBillDescription(record),
     images: normalizeBillImages(record.images),
@@ -154,6 +156,7 @@ export function createBill(input: BillDraftInput & Required<Pick<Bill, 'category
     source: input.source,
     categoryId: input.categoryId,
     amount: clampAmount(input.amount),
+    purpose: getTrimmedString(input.purpose) || undefined,
     billNo: input.billNo,
     description: input.description.trim(),
     images: normalizeBillImages(input.images),

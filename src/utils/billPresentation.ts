@@ -35,15 +35,15 @@ function resolveBillFileSrc(file: BillFileTarget): string {
 }
 
 export function getBillDisplayTitle(bill: BillDisplayTarget, category?: Pick<Category, 'name'> | null): string {
+  const legacyPurpose = typeof bill.purpose === 'string' ? normalizeText(bill.purpose) : ''
+  if (legacyPurpose) {
+    return truncateText(legacyPurpose)
+  }
+
   const description = normalizeText(bill.description)
 
   if (description) {
     return truncateText(description)
-  }
-
-  const legacyPurpose = typeof bill.purpose === 'string' ? normalizeText(bill.purpose) : ''
-  if (legacyPurpose) {
-    return truncateText(legacyPurpose)
   }
 
   if (category?.name) {

@@ -44,7 +44,19 @@ const parsedTagLabel = computed(() => {
   return '待确认'
 })
 
-const displayTitle = computed(() => props.record.draft?.description || props.record.notificationTitle)
+const displayTitle = computed(() => {
+  const purpose = props.record.draft?.purpose?.trim()
+  if (purpose) {
+    return purpose
+  }
+
+  const description = props.record.draft?.description?.trim()
+  if (description) {
+    return description
+  }
+
+  return props.record.notificationTitle
+})
 const categoryLabel = computed(() => {
   if (!props.category) {
     return '其他'

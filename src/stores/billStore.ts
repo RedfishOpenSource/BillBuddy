@@ -8,6 +8,7 @@ export interface BillFormPayload {
   source: BillSource
   categoryId: string
   amount: number
+  purpose?: string
   billNo: string
   description: string
   images: BillImage[]
@@ -46,12 +47,13 @@ export const useBillStore = defineStore('bills', {
 
       const bill = existing
         ? buildUpdatedBill(existing, payload)
-        : createBill({
-            source: payload.source,
-            categoryId: payload.categoryId,
-            amount: Number(payload.amount),
-            billNo: payload.billNo,
-            description: payload.description,
+          : createBill({
+              source: payload.source,
+              categoryId: payload.categoryId,
+              amount: Number(payload.amount),
+              purpose: payload.purpose,
+              billNo: payload.billNo,
+              description: payload.description,
             images: payload.images ?? [],
             videos: payload.videos ?? [],
             billDate: payload.billDate || dayjs().format('YYYY-MM-DD'),

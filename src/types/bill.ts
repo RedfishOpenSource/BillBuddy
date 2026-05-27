@@ -25,6 +25,7 @@ export interface Bill {
   source: BillSource
   categoryId: string
   amount: number
+  purpose?: string
   billNo: string
   description: string
   images: BillImage[]
@@ -40,6 +41,7 @@ export interface BillDraftInput {
   source: BillSource
   categoryId?: string
   amount?: number
+  purpose?: string
   billNo?: string
   description?: string
   images?: BillImage[]

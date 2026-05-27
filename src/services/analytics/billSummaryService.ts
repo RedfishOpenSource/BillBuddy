@@ -50,6 +50,7 @@ export function filterBills(bills: Bill[], filters: BillFilters, categories: Cat
     if (!keyword) return true
 
     return [
+      bill.purpose ?? '',
       bill.description,
       bill.billNo,
       bill.billDate,

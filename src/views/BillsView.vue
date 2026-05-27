@@ -2,10 +2,11 @@
 import { ArrowDown, Operation, Search, Setting, Share } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus'
-import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import BillCard from '../components/bill/BillCard.vue'
 import BillFilterBar from '../components/bill/BillFilterBar.vue'
+import SettingsPanelContent from '../components/settings/SettingsPanelContent.vue'
 import {
   createEmptyFilters,
   filterBills,
@@ -21,12 +22,14 @@ import { useCategoryStore } from '../stores/categoryStore'
 import type { BillFilters, BillSort } from '../types/bill'
 import { createFlatCategoryOptions, getCategoryDisplayName } from '../utils/category'
 
+const route = useRoute()
 const router = useRouter()
 const billStore = useBillStore()
 const categoryStore = useCategoryStore()
 const appliedFilters = ref(createEmptyFilters())
 const draftFilters = ref(createEmptyFilters())
 const filterDrawerVisible = ref(false)
+const settingsDrawerVisible = ref(false)
 const sharing = ref(false)
 
 const categoryOptions = computed(() => createFlatCategoryOptions(categoryStore.sortedCategories))
@@ -112,12 +115,36 @@ function openFilterDrawer(): void {
 }
 
 function openSettingsDrawer(): void {
-  void router.push({ path: '/bills', query: { drawer: 'settings' } })
+  settingsDrawerVisible.value = true
+
+  if (route.query.drawer === 'settings') {
+    return
+  }
+
+  void router.push({
+    path: '/bills',
+    query: {
+      ...route.query,
+      drawer: 'settings',
+    },
+  })
 }
 
 function closeFilterDrawer(): void {
   filterDrawerVisible.value = false
   syncDraftFilters()
+}
+
+function closeSettingsDrawer(): void {
+  settingsDrawerVisible.value = false
+
+  if (route.query.drawer !== 'settings') {
+    return
+  }
+
+  const nextQuery = { ...route.query }
+  delete nextQuery.drawer
+  void router.replace({ path: '/bills', query: nextQuery })
 }
 
 function applyFilterDrawer(): void {
@@ -195,6 +222,14 @@ async function handleShare(): Promise<void> {
     sharing.value = false
   }
 }
+
+watch(
+  () => route.query.drawer,
+  (drawer) => {
+    settingsDrawerVisible.value = drawer === 'settings'
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -305,6 +340,18 @@ async function handleShare(): Promise<void> {
       </button>
     </div>
     <el-empty v-else description="当前筛选条件下没有账单。" />
+
+    <el-drawer
+      v-model="settingsDrawerVisible"
+      class="settings-drawer-panel"
+      title="设置"
+      direction="ltr"
+      size="88%"
+      append-to-body
+      @closed="closeSettingsDrawer"
+    >
+      <SettingsPanelContent />
+    </el-drawer>
 
     <el-drawer
       v-model="filterDrawerVisible"

@@ -2,13 +2,12 @@
 import { Share } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
-import { computed, defineAsyncComponent, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, ref } from 'vue'
 import MonthlySummaryCard from '../components/stats/MonthlySummaryCard.vue'
 import {
   buildCategorySummary,
   buildMonthlyTrend,
   buildYearlyTrend,
-  getAvailableYears,
   getMonthBills,
   getYearBills,
   summarizeBills,
@@ -25,23 +24,14 @@ const CategorySummaryChart = defineAsyncComponent(() => import('../components/st
 const billStore = useBillStore()
 const categoryStore = useCategoryStore()
 const allMonthsValue = 0
+const currentYear = dayjs().year()
 const sharing = ref(false)
 
-const availableYears = computed(() => getAvailableYears(billStore.bills))
-const selectedYear = ref(dayjs().year())
+const availableYears = computed(() => Array.from({ length: 21 }, (_, index) => currentYear - 10 + index))
+const selectedYear = ref(currentYear)
 const selectedMonth = ref<number | null>(dayjs().month() + 1)
 const effectiveMonth = computed(() => selectedMonth.value ?? allMonthsValue)
 const isYearView = computed(() => effectiveMonth.value === allMonthsValue)
-
-watch(
-  availableYears,
-  (years) => {
-    if (!years.includes(selectedYear.value)) {
-      selectedYear.value = years[0]
-    }
-  },
-  { immediate: true },
-)
 
 const scopedBills = computed(() => {
   if (isYearView.value) {

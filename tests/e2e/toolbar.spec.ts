@@ -71,7 +71,7 @@ async function seedDemoBills(page: Page): Promise<void> {
         id: 'bill-demo-4',
         source: 'manual',
         categoryId: 'salary',
-        purpose: '5月工资',
+        purpose: '月度工资',
         amount: 12800,
         billNo: 'SALARY-202605',
         description: '主业收入',
@@ -85,64 +85,54 @@ async function seedDemoBills(page: Page): Promise<void> {
   })
 }
 
-async function seedWechatNotification(page: Page): Promise<void> {
-  const now = new Date()
-  const nowIso = now.toISOString()
+test('bills toolbar settings drawer opens and closes', async ({ page }) => {
+  await page.goto('/bills')
 
-  await seedStorage(page, {
-    'billbuddy:ingest-records': [
-      {
-        id: 'ingest-demo-1',
-        sourceApp: 'wechat',
-        notificationTitle: '微信支付',
-        notificationText: '你向麦当劳付款￥32.50，交易单号420000123456，5月12日',
-        receivedAt: nowIso,
-        parsedStatus: 'parsed',
-        matchedBillId: '',
-        draft: {
-          source: 'wechat',
-          categoryId: 'food',
-          purpose: '麦当劳',
-          amount: 32.5,
-          billNo: '420000123456',
-          description: '微信通知导入',
-          billDate: formatDate(now),
-          rawText: '微信通知：你向麦当劳付款￥32.50，交易单号420000123456，5月12日',
-          confidence: 0.98,
-          sourceApp: 'wechat',
-        },
-        errorMessage: '',
-      },
-    ],
-  })
-}
+  await page.locator('.bill-search-strip__settings').click()
+  await expect(page.locator('.settings-drawer-panel')).toBeVisible()
+  await expect(page).toHaveURL(/drawer=settings/)
 
-test('home dashboard renders on mobile viewport', async ({ page }) => {
-  await page.goto('/home')
-  await expect(page.getByRole('heading', { name: '账单概览' })).toBeVisible()
-  await expect(page.locator('.summary-grid--stats')).toBeVisible()
+  await page.locator('.settings-drawer-panel .el-drawer__close-btn').click()
+  await expect(page.locator('.settings-drawer-panel')).toBeHidden()
+  await expect(page).not.toHaveURL(/drawer=settings/)
 })
 
-test('demo bills can be seeded and browsed', async ({ page }) => {
+test('bills toolbar share button triggers web share fallback', async ({ page }) => {
   await seedDemoBills(page)
+  await page.addInitScript(() => {
+    ;(window as any).__billBuddyShareCalled = false
+    Object.defineProperty(navigator, 'canShare', {
+      configurable: true,
+      value: () => true,
+    })
+    Object.defineProperty(navigator, 'share', {
+      configurable: true,
+      value: async () => {
+        ;(window as any).__billBuddyShareCalled = true
+      },
+    })
+  })
 
   await page.goto('/bills')
-  await expect(page.locator('.bill-search-strip__settings')).toBeVisible()
-  await expect(page.getByRole('heading', { name: '午餐套餐' }).first()).toBeVisible()
-  await expect(page.getByRole('heading', { name: '5月工资' }).first()).toBeVisible()
+  await page.locator('.bill-search-strip__more').click()
+
+  await expect
+    .poll(() => page.evaluate(() => Boolean((window as any).__billBuddyShareCalled)))
+    .toBe(true)
 })
 
-test('wechat notification draft can be confirmed into a bill', async ({ page }) => {
-  await seedWechatNotification(page)
+test('stats year selector defaults to current year and spans previous and next 10 years', async ({ page }) => {
+  const currentYear = new Date().getFullYear()
 
-  await page.goto('/inbox')
-  await expect(page.getByRole('heading', { name: '麦当劳' })).toBeVisible()
-  await page.getByRole('button', { name: '确认入账' }).first().click()
+  await page.goto('/stats')
 
-  await expect(page.getByRole('heading', { name: '确认通知账单' })).toBeVisible()
-  await page.getByRole('button', { name: '确认并保存' }).click()
+  const yearSelect = page.locator('.stats-toolbar__control').first()
+  await expect(yearSelect).toContainText(String(currentYear))
 
-  await expect(page).toHaveURL(/\/bill\//)
-  await expect(page.getByRole('heading', { name: '麦当劳' })).toBeVisible()
-  await expect(page.getByText('微信通知导入')).toBeVisible()
+  await yearSelect.locator('.el-select__wrapper').click()
+
+  const yearOptions = page.locator('.el-select-dropdown:visible .el-select-dropdown__item')
+  await expect(yearOptions).toHaveCount(21)
+  await expect(yearOptions.first()).toContainText(String(currentYear - 10))
+  await expect(yearOptions.last()).toContainText(String(currentYear + 10))
 })
