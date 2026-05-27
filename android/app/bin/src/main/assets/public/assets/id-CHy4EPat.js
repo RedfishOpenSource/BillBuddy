@@ -1,0 +1,1 @@
+function e(e){return typeof crypto<`u`&&typeof crypto.randomUUID==`function`?`${e}-${crypto.randomUUID()}`:`${e}-${Math.random().toString(36).slice(2,10)}`}export{e as t};

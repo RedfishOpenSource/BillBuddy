@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">账单助手</string>
+    <string name="title_activity_main">账单助手</string>
+    <string name="package_name">com.redfishopensource.billbuddy</string>
+    <string name="custom_url_scheme">com.redfishopensource.billbuddy</string>
+</resources>
