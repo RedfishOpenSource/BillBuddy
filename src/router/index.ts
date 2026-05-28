@@ -12,7 +12,7 @@ const router = createRouter({
         { path: 'bills', name: 'bills', component: () => import('../views/BillsView.vue') },
         { path: 'stats', name: 'stats', component: () => import('../views/StatsView.vue') },
         { path: 'inbox', name: 'inbox', component: () => import('../views/IngestInboxView.vue') },
-        { path: 'settings', name: 'settings', redirect: () => ({ path: '/bills', query: { drawer: 'settings' } }) },
+        { path: 'settings', name: 'settings', component: () => import('../views/SettingsView.vue') },
       ],
     },
     { path: '/bill/new', name: 'bill-new', component: () => import('../views/BillFormView.vue') },

@@ -14,9 +14,10 @@ import {
 } from '../services/analytics/billSummaryService'
 import {
   downloadPreparedShareFile,
+  getShareResultMessage,
   prepareBillsShareFile,
 } from '../services/analytics/shareReportService'
-import { shareFile } from '../services/native/shareBridge'
+import { isShareBridgeAvailable, shareFile } from '../services/native/shareBridge'
 import { useBillStore } from '../stores/billStore'
 import { useCategoryStore } from '../stores/categoryStore'
 import type { BillFilters, BillSort } from '../types/bill'
@@ -114,20 +115,8 @@ function openFilterDrawer(): void {
   filterDrawerVisible.value = true
 }
 
-function openSettingsDrawer(): void {
-  settingsDrawerVisible.value = true
-
-  if (route.query.drawer === 'settings') {
-    return
-  }
-
-  void router.push({
-    path: '/bills',
-    query: {
-      ...route.query,
-      drawer: 'settings',
-    },
-  })
+function openSettingsPage(): void {
+  void router.push('/settings')
 }
 
 function closeFilterDrawer(): void {
@@ -240,7 +229,7 @@ watch(
           class="toolbar-icon-button bill-search-strip__settings"
           text
           aria-label="打开设置"
-          @click="openSettingsDrawer"
+          @click="openSettingsPage"
         >
           <el-icon><Setting /></el-icon>
         </el-button>

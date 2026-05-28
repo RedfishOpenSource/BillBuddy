@@ -139,6 +139,18 @@ a {
   overflow: visible;
 }
 
+.screen--standalone-form {
+  height: 100vh;
+  height: 100svh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  align-content: start;
+  padding-top: calc(env(safe-area-inset-top) + 14px);
+  padding-bottom: calc(32px + env(safe-area-inset-bottom));
+}
+
 .hero-card,
 .panel,
 .detail-hero {
@@ -274,6 +286,30 @@ a {
   text-align: left;
   font-size: 20px;
   line-height: 1.25;
+}
+
+.back-page-header--center {
+  position: relative;
+  justify-content: center;
+}
+
+.back-page-header--center .back-page-header__main {
+  width: 100%;
+  justify-content: center;
+}
+
+.back-page-header--center .back-page-header__back {
+  position: absolute;
+  left: 0;
+}
+
+.back-page-header--center .back-page-header__titles {
+  max-width: calc(100% - 96px);
+  text-align: center;
+}
+
+.back-page-header--center .back-page-header__titles h2 {
+  text-align: center;
 }
 
 .back-page-header__action-button {
