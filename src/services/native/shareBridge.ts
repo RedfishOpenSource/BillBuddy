@@ -14,6 +14,13 @@ export interface ShareFileResult {
   sharedVia: 'package' | 'chooser'
 }
 
+export class ShareBridgeError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'ShareBridgeError'
+  }
+}
+
 export interface ShareTargetOption {
   label: string
   shortLabel: string
@@ -62,7 +69,7 @@ function buildShareBlob(options: ShareFileOptions): Blob {
 }
 
 export function isShareBridgeAvailable(): boolean {
-  return Capacitor.getPlatform() === 'android'
+  return Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
 }
 
 async function shareWithWebApi(options: ShareFileOptions): Promise<ShareFileResult | null> {
@@ -84,16 +91,29 @@ async function shareWithWebApi(options: ShareFileOptions): Promise<ShareFileResu
       files: [file],
     })
     return { sharedVia: 'chooser' }
-  } catch {
-    return null
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      return null
+    }
+
+    throw new ShareBridgeError(error instanceof Error ? error.message : '浏览器分享失败')
   }
 }
 
 export async function shareFile(options: ShareFileOptions): Promise<ShareFileResult | null> {
   if (isShareBridgeAvailable()) {
-    const shared = await BillShare.shareFile(options).catch(() => null)
-    if (shared) {
-      return shared
+    try {
+      return await BillShare.shareFile(options)
+    } catch (error) {
+      const webShared = await shareWithWebApi(options).catch((webError) => {
+        throw webError
+      })
+
+      if (webShared) {
+        return webShared
+      }
+
+      throw new ShareBridgeError(error instanceof Error ? error.message : '系统分享不可用')
     }
   }
 

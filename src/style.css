@@ -209,7 +209,7 @@ a {
 .section-title-row {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
   text-align: left;
 }
@@ -243,10 +243,12 @@ a {
 .back-page-header__actions {
   margin-left: auto;
   align-items: center;
+  align-self: center;
 }
 
 .back-page-header__main {
   min-width: 0;
+  flex: 1;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -272,6 +274,7 @@ a {
   gap: 2px;
   text-align: left;
   align-content: center;
+  justify-items: start;
 }
 
 .back-page-header__titles .eyebrow {
@@ -315,6 +318,9 @@ a {
 .back-page-header__action-button {
   width: 36px;
   height: 36px;
+  border-radius: 12px;
+  border: 1px solid var(--line-soft);
+  background: var(--bg-surface);
 }
 
 .eyebrow {
@@ -593,10 +599,6 @@ a {
   color: var(--text-main);
 }
 
-.settings-drawer-panel .el-drawer__body {
-  padding: 14px;
-}
-
 .settings-drawer {
   display: grid;
   gap: 16px;
@@ -617,30 +619,66 @@ a {
   gap: 16px;
 }
 
-.bill-form__category-picker,
-.bill-form__category-tabs,
-.category-top-tabs {
+.bill-form__category-picker {
   display: grid;
   gap: 12px;
 }
 
-.bill-form__category-tabs,
-.category-top-tabs {
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+.bill-category-sheet {
+  gap: 16px;
 }
 
-.bill-form__category-tabs .el-button,
-.category-top-tabs .el-button {
-  margin: 0;
-  min-height: 40px;
-  border-radius: 12px;
+
+.category-scroll-row {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
 }
 
-.bill-form__category-tabs .el-button.is-active,
-.category-top-tabs .el-button.is-active {
+.category-scroll-row::-webkit-scrollbar {
+  display: none;
+}
+
+.category-scroll-row--secondary {
+  padding-bottom: 0;
+}
+
+.category-pill {
+  appearance: none;
+  border: 1px solid var(--line-soft);
+  background: var(--bg-surface);
+  color: var(--text-main);
+  border-radius: 999px;
+  padding: 10px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  flex: none;
+  min-height: 42px;
+}
+
+.category-pill:disabled {
+  opacity: 0.65;
+}
+
+.category-pill.is-active,
+.category-pill.is-selected {
   border-color: #c6e2ff;
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+.category-pill__icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.category-pill--secondary {
+  background: var(--bg-soft);
 }
 
 .bill-form .el-segmented,
@@ -1261,6 +1299,29 @@ a {
   border-radius: var(--radius-lg);
 }
 
+.bill-delete-dialog .el-dialog {
+  border-radius: 20px;
+}
+
+.bill-delete-dialog .el-dialog__body {
+  padding: 18px 16px 16px;
+}
+
+.bill-delete-dialog__content {
+  gap: 18px;
+}
+
+.bill-delete-dialog__actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.bill-delete-dialog__actions .el-button {
+  margin: 0;
+  height: 42px;
+}
+
 .el-overlay-dialog {
   padding: 12px;
 }
@@ -1358,11 +1419,26 @@ a {
     padding-inline: 14px;
   }
 
-  .page-heading,
+  .page-heading:not(.back-page-header),
   .section-title-row,
   .bill-card__topline,
   .filter-summary {
     flex-direction: column;
+  }
+
+  .settings-category-row .section-title-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .back-page-header {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .back-page-header__main {
+    width: 100%;
   }
 
   .bill-search-strip__button {

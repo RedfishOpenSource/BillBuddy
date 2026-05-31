@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue'
+import { reactive, watch } from 'vue'
 import { createEmptyFilters } from '../../services/analytics/billSummaryService'
 import type { BillFilters } from '../../types/bill'
 import type { Category } from '../../types/category'
-import { createCategoryOptionGroups } from '../../utils/category'
+import { createFlatCategoryOptions } from '../../utils/category'
 
 const props = withDefaults(
   defineProps<{
@@ -21,7 +21,7 @@ const emit = defineEmits<{
 }>()
 
 const filters = reactive<BillFilters>({ ...props.modelValue })
-const categoryOptionGroups = computed(() => createCategoryOptionGroups(props.categories))
+const categoryOptions = createFlatCategoryOptions(props.categories)
 
 watch(
   () => props.modelValue,
@@ -52,10 +52,13 @@ function resetFilters(): void {
       </div>
       <div class="filter-grid">
         <el-input v-model="filters.keyword" placeholder="搜索描述、编号、来源等字段" clearable />
-        <el-select v-model="filters.categoryId" placeholder="选择分类" clearable filterable>
-          <el-option-group v-for="group in categoryOptionGroups" :key="group.label" :label="group.label">
-            <el-option v-for="option in group.options" :key="option.id" :label="option.label" :value="option.id" />
-          </el-option-group>
+        <el-select v-model="filters.categoryId" clearable filterable placeholder="选择分类">
+          <el-option
+            v-for="category in categoryOptions"
+            :key="category.id"
+            :label="category.label"
+            :value="category.id"
+          />
         </el-select>
         <el-date-picker v-model="filters.startDate" type="date" value-format="YYYY-MM-DD" placeholder="开始日期" />
         <el-date-picker v-model="filters.endDate" type="date" value-format="YYYY-MM-DD" placeholder="结束日期" />

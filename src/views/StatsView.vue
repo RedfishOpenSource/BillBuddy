@@ -12,7 +12,7 @@ import {
   getYearBills,
   summarizeBills,
 } from '../services/analytics/billSummaryService'
-import { downloadPreparedShareFile, prepareStatsShareFile } from '../services/analytics/shareReportService'
+import { downloadPreparedShareFile, getShareResultMessage, prepareStatsShareFile } from '../services/analytics/shareReportService'
 import { shareFile } from '../services/native/shareBridge'
 import { useBillStore } from '../stores/billStore'
 import { useCategoryStore } from '../stores/categoryStore'
@@ -69,13 +69,13 @@ const summaryLabel = computed(() => {
 const trendEyebrow = computed(() => (isYearView.value ? '年度视图' : '月度视图'))
 const trendTitle = computed(() => (isYearView.value ? '月度趋势' : '每日趋势'))
 
-async function handleShare(): Promise<void> {
-  if (!trend.value.length) {
-    ElMessage.warning('当前没有可分享的统计结果')
-    return
-  }
+function openShareDialog(): void {
+  void handleShare()
+}
 
+async function handleShare(): Promise<void> {
   sharing.value = true
+  ElMessage.info('正在准备统计分享文件，请稍候…')
 
   try {
     const monthLabel = effectiveMonth.value === allMonthsValue ? '全年' : effectiveMonth.value
@@ -88,17 +88,25 @@ async function handleShare(): Promise<void> {
       categorySummary: categorySummary.value,
     })
 
-    const shared = await shareFile({
-      ...file,
-      title: '分享统计',
-      preferChooser: true,
-    })
+    let shared = null
+
+    try {
+      shared = await shareFile({
+        ...file,
+        title: '分享统计',
+        preferChooser: true,
+      })
+    } catch (error) {
+      downloadPreparedShareFile(file)
+      ElMessage.warning(error instanceof Error ? `${error.message}，已导出统计文件` : '系统分享失败，已导出统计文件')
+      return
+    }
 
     if (shared) {
-      ElMessage.success('已打开系统分享')
+      ElMessage.success(getShareResultMessage(shared.sharedVia, '分享方式'))
     } else {
       downloadPreparedShareFile(file)
-      ElMessage.success('统计文件已导出')
+      ElMessage.success(getShareResultMessage('download'))
     }
   } catch (error) {
     ElMessage.error(error instanceof Error ? error.message : '分享失败，请稍后重试')
@@ -123,7 +131,7 @@ async function handleShare(): Promise<void> {
         text
         :loading="sharing"
         aria-label="分享统计"
-        @click="handleShare"
+        @click="openShareDialog"
       >
         <el-icon><Share /></el-icon>
       </el-button>
@@ -132,5 +140,7 @@ async function handleShare(): Promise<void> {
     <MonthlySummaryCard :label="summaryLabel" :summary="summary" />
     <YearlyTrendChart :points="trend" :eyebrow="trendEyebrow" :title="trendTitle" />
     <CategorySummaryChart v-if="!isYearView" :items="categorySummary" />
+
+
   </section>
 </template>

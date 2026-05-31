@@ -21,6 +21,13 @@ export interface CategoryTreeGroup {
   children: Category[]
 }
 
+export interface CategoryTreeSelectNode {
+  value: string
+  label: string
+  category: Category
+  children?: CategoryTreeSelectNode[]
+}
+
 function compareCategories(left: Category, right: Category): number {
   return left.sortOrder - right.sortOrder || left.name.localeCompare(right.name, 'zh-CN')
 }
@@ -147,4 +154,22 @@ export function createFlatCategoryOptions(categories: Category[]): CategoryOptio
 
 export function createTopLevelCategoryGroups(categories: Category[], type?: CategoryType): CategoryTreeGroup[] {
   return buildCategoryTree(categories, type).filter((group) => !group.category.parentId)
+}
+
+export function createCategoryTreeSelectNodes(
+  categories: Category[],
+  type?: CategoryType,
+): CategoryTreeSelectNode[] {
+  return buildCategoryTree(categories, type).map(({ category, children }) => ({
+    value: category.id,
+    label: `${category.icon} ${category.name}`,
+    category,
+    children: children.length
+      ? children.map((child) => ({
+          value: child.id,
+          label: `${child.icon} ${child.name}`,
+          category: child,
+        }))
+      : undefined,
+  }))
 }

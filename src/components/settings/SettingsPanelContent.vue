@@ -1,37 +1,23 @@
 <script setup lang="ts">
-import { EditPen, Plus } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { Plus } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { downloadTextFile } from '../../services/analytics/shareReportService'
 import { applyBackupPayload, createBackupPayload, parseBackupPayload } from '../../services/db/backupService'
 import { shareFile } from '../../services/native/shareBridge'
 import { useBillStore } from '../../stores/billStore'
 import { useCategoryStore } from '../../stores/categoryStore'
 import { useIngestStore } from '../../stores/ingestStore'
-import type { Category, CategoryType } from '../../types/category'
-import { buildCategoryTree, getCategoryDisplayName, getCategoryTypeGroupLabel } from '../../utils/category'
+import { createTopLevelCategoryGroups } from '../../utils/category'
 
-interface CategoryFormState {
-  id: string
-  name: string
-  type: CategoryType
-  parentId: string
-  icon: string
-  color: string
-}
-
+const router = useRouter()
 const billStore = useBillStore()
 const categoryStore = useCategoryStore()
 const ingestStore = useIngestStore()
 
-const dialogVisible = ref(false)
-const dialogParentRequired = ref(false)
 const backupInputRef = ref<HTMLInputElement | null>(null)
-const selectedTopCategoryIds = ref<Record<CategoryType, string>>({
-  expense: '',
-  income: '',
-})
-const form = reactive<CategoryFormState>(createDefaultCategoryForm())
+const selectedTopCategoryId = ref('')
 
 const listenerStatus = computed(() => {
   if (!ingestStore.listenerAvailable) {
@@ -56,144 +42,61 @@ const listenerActionLabel = computed(() =>
   ingestStore.listenerEnabled ? '重新打开通知访问设置' : '打开通知访问设置',
 )
 
-const categorySections = computed(() =>
-  (['expense', 'income'] satisfies CategoryType[]).map((type) => ({
-    type,
-    label: getCategoryTypeGroupLabel(type),
-    groups: buildCategoryTree(categoryStore.sortedCategories, type),
-  })),
+const topCategoryGroups = computed(() => createTopLevelCategoryGroups(categoryStore.sortedCategories))
+const selectedTopCategoryGroup = computed(
+  () => topCategoryGroups.value.find((group) => group.category.id === selectedTopCategoryId.value) ?? topCategoryGroups.value[0] ?? null,
 )
+const selectedChildren = computed(() => selectedTopCategoryGroup.value?.children ?? [])
 
-const visibleCategorySections = computed(() =>
-  categorySections.value.map((section) => ({
-    ...section,
-    selectedGroup:
-      section.groups.find((group) => group.category.id === selectedTopCategoryIds.value[section.type]) ??
-      section.groups[0] ??
-      null,
-  })),
-)
+function ensureSelectedTopCategory(): void {
+  const groups = topCategoryGroups.value
 
-const availableParentOptions = computed(() =>
-  buildCategoryTree(categoryStore.sortedCategories, form.type)
-    .map((item) => item.category)
-    .filter((category) => category.id !== form.id),
-)
-
-const currentCategoryChildrenCount = computed(() =>
-  categoryStore.sortedCategories.filter((category) => category.parentId === form.id).length,
-)
-
-const canChooseParent = computed(() => currentCategoryChildrenCount.value === 0)
-const dialogTitle = computed(() => {
-  if (form.id) {
-    return '编辑分类'
+  if (!groups.length) {
+    selectedTopCategoryId.value = ''
+    return
   }
 
-  return dialogParentRequired.value ? '新增二级分类' : '新增分类'
-})
-
-const currentParentLabel = computed(() => getCategoryDisplayName(form.parentId, categoryStore.sortedCategories))
-
-function createDefaultCategoryForm(type: CategoryType = 'expense'): CategoryFormState {
-  return {
-    id: '',
-    name: '',
-    type,
-    parentId: '',
-    icon: '🧾',
-    color: type === 'income' ? '#34c759' : '#8f96b3',
+  if (!groups.some((group) => group.category.id === selectedTopCategoryId.value)) {
+    selectedTopCategoryId.value = groups[0].category.id
   }
 }
 
-function ensureSelectedTopCategories(): void {
-  const next = { ...selectedTopCategoryIds.value }
+function selectTopCategory(categoryId: string): void {
+  selectedTopCategoryId.value = categoryId
+}
 
-  ;(['expense', 'income'] as CategoryType[]).forEach((type) => {
-    const groups = buildCategoryTree(categoryStore.sortedCategories, type)
-    if (!groups.length) {
-      next[type] = ''
-      return
-    }
+function openCategoryEditor(categoryId: string): void {
+  void router.push(`/settings/category/${categoryId}`)
+}
 
-    if (!groups.some((group) => group.category.id === next[type])) {
-      next[type] = groups[0].category.id
-    }
+function openCreateTopCategory(): void {
+  void router.push('/settings/category/new')
+}
+
+function openCreateChildCategory(): void {
+  const topCategory = selectedTopCategoryGroup.value?.category
+
+  if (!topCategory) {
+    ElMessage.warning('请先选择一级分类')
+    return
+  }
+
+  void router.push({
+    path: '/settings/category/new',
+    query: {
+      type: topCategory.type,
+      parentId: topCategory.id,
+    },
   })
-
-  selectedTopCategoryIds.value = next
-}
-
-function resetForm(type: CategoryType = 'expense', requireParent = false): void {
-  Object.assign(form, createDefaultCategoryForm(type))
-  dialogParentRequired.value = requireParent
-
-  if (requireParent) {
-    form.parentId = selectedTopCategoryIds.value[type] || ''
-  }
-}
-
-function openCreateDialog(type: CategoryType, requireParent = false): void {
-  resetForm(type, requireParent)
-  dialogVisible.value = true
-}
-
-function openEditDialog(category: Category): void {
-  Object.assign(form, {
-    id: category.id,
-    name: category.name,
-    type: category.type,
-    parentId: category.parentId ?? '',
-    icon: category.icon,
-    color: category.color,
-  })
-  dialogParentRequired.value = Boolean(category.parentId)
-  selectedTopCategoryIds.value[category.type] = category.parentId ?? category.id
-  dialogVisible.value = true
-}
-
-function selectTopCategory(type: CategoryType, categoryId: string): void {
-  selectedTopCategoryIds.value = {
-    ...selectedTopCategoryIds.value,
-    [type]: categoryId,
-  }
 }
 
 watch(
   () => categoryStore.sortedCategories,
   () => {
-    ensureSelectedTopCategories()
+    ensureSelectedTopCategory()
   },
   { deep: true, immediate: true },
 )
-
-watch(
-  () => form.parentId,
-  (parentId) => {
-    const parent = categoryStore.getCategoryById(parentId)
-    if (parent) {
-      form.type = parent.type
-    }
-  },
-)
-
-watch(
-  () => form.type,
-  (type) => {
-    const parent = categoryStore.getCategoryById(form.parentId)
-    if (parent && parent.type !== type) {
-      form.parentId = ''
-    }
-  },
-)
-
-function getCategoryTypeLabel(type: CategoryType): string {
-  return type === 'income' ? '收入' : '支出'
-}
-
-function getCategoryLevelLabel(category: Category): string {
-  return category.parentId ? '二级分类' : '一级分类'
-}
 
 function buildBackupFileName(): string {
   return `BillBuddy-备份-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
@@ -211,12 +114,20 @@ async function exportBackup(): Promise<void> {
   const payload = await createBackupPayload()
   const fileName = buildBackupFileName()
   const content = JSON.stringify(payload, null, 2)
-  const shared = await shareFile({
-    fileName,
-    textContent: content,
-    mimeType: 'application/json',
-    title: '导出 BillBuddy 备份',
-  })
+  let shared = null
+
+  try {
+    shared = await shareFile({
+      fileName,
+      textContent: content,
+      mimeType: 'application/json',
+      title: '导出 BillBuddy 备份',
+    })
+  } catch (error) {
+    downloadTextFile(fileName, content, 'application/json')
+    ElMessage.warning(error instanceof Error ? `${error.message}，已导出备份文件` : '系统分享失败，已导出备份文件')
+    return
+  }
 
   if (shared) {
     ElMessage.success('已打开系统分享，可保存或发送备份文件')
@@ -224,7 +135,7 @@ async function exportBackup(): Promise<void> {
   }
 
   downloadTextFile(fileName, content, 'application/json')
-  ElMessage.success('备份文件已导出')
+  ElMessage.success('当前环境不支持系统分享，已导出备份文件')
 }
 
 function triggerImport(): void {
@@ -252,61 +163,6 @@ async function importBackup(event: Event): Promise<void> {
   } finally {
     input.value = ''
   }
-}
-
-function submitCategory(): void {
-  if (!form.name.trim()) {
-    ElMessage.warning('请填写分类名称')
-    return
-  }
-
-  if (dialogParentRequired.value && !form.parentId) {
-    ElMessage.warning('请选择所属一级分类')
-    return
-  }
-
-  if (form.parentId && !canChooseParent.value && !categoryStore.getCategoryById(form.parentId)?.parentId) {
-    ElMessage.warning('当前一级分类下已有二级分类，不能再调整层级')
-    return
-  }
-
-  try {
-    const savedCategory = categoryStore.saveCategory({
-      id: form.id || undefined,
-      name: form.name.trim(),
-      type: form.type,
-      parentId: form.parentId || undefined,
-      icon: form.icon.trim() || '🧾',
-      color: form.color,
-    })
-    selectedTopCategoryIds.value[savedCategory.type] = savedCategory.parentId ?? savedCategory.id
-    dialogVisible.value = false
-    ElMessage.success('分类已保存')
-  } catch (error) {
-    ElMessage.warning(error instanceof Error ? error.message : '分类保存失败')
-  }
-}
-
-async function removeCategory(category: Category): Promise<void> {
-  const childCount = categoryStore.sortedCategories.filter((item) => item.parentId === category.id).length
-  const message = childCount
-    ? `删除后会同时移除 ${childCount} 个二级分类，确定继续吗？`
-    : '删除后不可恢复，确定继续吗？'
-  const action = await ElMessageBox.confirm(message, '删除分类', {
-    type: 'warning',
-    confirmButtonText: '确认删除',
-    cancelButtonText: '取消',
-    distinguishCancelAndClose: true,
-    closeOnClickModal: false,
-  }).catch((reason) => reason)
-
-  if (action !== 'confirm') {
-    return
-  }
-
-  categoryStore.deleteCategory(category.id)
-  ensureSelectedTopCategories()
-  ElMessage.success('分类已删除')
 }
 </script>
 
@@ -357,121 +213,66 @@ async function removeCategory(category: Category): Promise<void> {
         <div class="section-title-row">
           <div>
             <span class="eyebrow">分类管理</span>
-            <h3>先一级，后查看二级</h3>
+            <h3>两行分类管理</h3>
           </div>
         </div>
       </template>
 
-      <div class="category-settings">
-        <section v-for="section in visibleCategorySections" :key="section.type" class="category-section">
+      <div class="settings-category-manager">
+        <section class="settings-category-row">
           <div class="section-title-row">
             <div>
-              <span class="eyebrow">{{ section.type === 'income' ? '金额来源' : '金额去向' }}</span>
-              <h3>{{ section.label }}</h3>
+              <span class="eyebrow">一级分类</span>
+              <h3>全部一级分类</h3>
             </div>
-            <div class="category-section__actions">
-              <el-button plain :icon="Plus" @click="openCreateDialog(section.type)">新增一级分类</el-button>
-              <el-button type="primary" plain :icon="Plus" @click="openCreateDialog(section.type, true)">新增二级分类</el-button>
-            </div>
+            <el-button plain :icon="Plus" @click="openCreateTopCategory">新增</el-button>
           </div>
 
-          <div class="category-top-tabs">
-            <el-button
-              v-for="group in section.groups"
+          <div class="category-scroll-row">
+            <button
+              v-for="group in topCategoryGroups"
               :key="group.category.id"
-              plain
-              :class="{ 'is-active': section.selectedGroup?.category.id === group.category.id }"
-              @click="selectTopCategory(section.type, group.category.id)"
+              type="button"
+              class="category-pill"
+              :class="{ 'is-active': selectedTopCategoryGroup?.category.id === group.category.id }"
+              @click="selectTopCategory(group.category.id)"
+              @dblclick="openCategoryEditor(group.category.id)"
             >
-              {{ group.category.icon }} {{ group.category.name }}
+              <span class="category-pill__icon">{{ group.category.icon }}</span>
+              <span>{{ group.category.name }}</span>
+            </button>
+          </div>
+          <p class="bill-form__image-hint">双击分类即可进入编辑。</p>
+        </section>
+
+        <section class="settings-category-row">
+          <div class="section-title-row">
+            <div>
+              <span class="eyebrow">二级分类</span>
+              <h3>{{ selectedTopCategoryGroup ? `${selectedTopCategoryGroup.category.name} 的二级分类` : '选择一级分类后查看' }}</h3>
+            </div>
+            <el-button plain type="primary" :icon="Plus" :disabled="!selectedTopCategoryGroup" @click="openCreateChildCategory">
+              新增
             </el-button>
           </div>
 
-          <div v-if="section.selectedGroup" class="category-tree">
-            <div class="category-group">
-              <div class="category-item category-item--parent">
-                <div class="category-item__main">
-                  <span
-                    class="category-item__icon"
-                    :style="{ background: `${section.selectedGroup.category.color}22`, color: section.selectedGroup.category.color }"
-                  >
-                    {{ section.selectedGroup.category.icon }}
-                  </span>
-                  <div>
-                    <strong>{{ section.selectedGroup.category.name }}</strong>
-                    <small>{{ getCategoryLevelLabel(section.selectedGroup.category) }} / {{ getCategoryTypeLabel(section.selectedGroup.category.type) }}</small>
-                  </div>
-                </div>
-                <div class="category-item__actions">
-                  <el-button circle :icon="EditPen" @click="openEditDialog(section.selectedGroup.category)" />
-                  <el-button text type="danger" @click="removeCategory(section.selectedGroup.category)">删除</el-button>
-                </div>
-              </div>
-
-              <div v-if="section.selectedGroup.children.length" class="category-children">
-                <div v-for="child in section.selectedGroup.children" :key="child.id" class="category-item category-item--child">
-                  <div class="category-item__main">
-                    <span class="category-item__icon" :style="{ background: `${child.color}22`, color: child.color }">
-                      {{ child.icon }}
-                    </span>
-                    <div>
-                      <strong>{{ child.name }}</strong>
-                      <small>{{ getCategoryLevelLabel(child) }} / {{ getCategoryDisplayName(child.parentId, categoryStore.sortedCategories) }}</small>
-                    </div>
-                  </div>
-                  <div class="category-item__actions">
-                    <el-button circle :icon="EditPen" @click="openEditDialog(child)" />
-                    <el-button text type="danger" @click="removeCategory(child)">删除</el-button>
-                  </div>
-                </div>
-              </div>
-
-              <el-empty v-else description="当前一级分类下还没有二级分类" />
-            </div>
+          <div class="category-scroll-row category-scroll-row--secondary">
+            <button
+              v-for="child in selectedChildren"
+              :key="child.id"
+              type="button"
+              class="category-pill category-pill--secondary"
+              @dblclick="openCategoryEditor(child.id)"
+            >
+              <span class="category-pill__icon">{{ child.icon }}</span>
+              <span>{{ child.name }}</span>
+            </button>
+            <span v-if="selectedTopCategoryGroup && !selectedChildren.length" class="bill-toolbar-meta__count">
+              当前一级分类下还没有二级分类
+            </span>
           </div>
         </section>
       </div>
     </el-card>
-
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="92%">
-      <div class="dialog-grid">
-        <el-input v-model="form.name" placeholder="分类名称" />
-
-        <el-select v-model="form.type" placeholder="分类类型">
-          <el-option label="支出" value="expense" />
-          <el-option label="收入" value="income" />
-        </el-select>
-
-        <el-select
-          v-model="form.parentId"
-          placeholder="所属一级分类（留空即一级分类）"
-          clearable
-          :disabled="!canChooseParent && !form.parentId"
-        >
-          <el-option label="作为一级分类" value="" />
-          <el-option
-            v-for="category in availableParentOptions"
-            :key="category.id"
-            :label="`${category.icon} ${category.name}`"
-            :value="category.id"
-          />
-        </el-select>
-
-        <el-input v-model="form.icon" maxlength="2" placeholder="图标，例如 🧾" />
-
-        <el-color-picker v-model="form.color" />
-      </div>
-
-      <div class="category-dialog__tips">
-        <p v-if="dialogParentRequired && !form.parentId">当前操作会创建二级分类，请先选择所属一级分类。</p>
-        <p v-if="form.parentId">当前将保存为二级分类，归属到：{{ currentParentLabel }}</p>
-        <p v-if="!canChooseParent && !form.parentId">当前一级分类下已有二级分类，不能再调整为其他一级分类的子类。</p>
-      </div>
-
-      <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitCategory">保存</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>

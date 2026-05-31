@@ -4,11 +4,15 @@ import BackPageHeader from '../components/BackPageHeader.vue'
 import SettingsPanelContent from '../components/settings/SettingsPanelContent.vue'
 
 const router = useRouter()
+
+function goBack(): void {
+  void router.back()
+}
 </script>
 
 <template>
-  <section class="screen screen--static screen--scrollable">
-    <BackPageHeader title="设置" @back="router.back()" />
+  <section class="screen screen--scrollable">
+    <BackPageHeader eyebrow="应用设置" title="设置" @back="goBack" />
     <SettingsPanelContent />
   </section>
 </template>

@@ -7,7 +7,7 @@ import type { BillFormPayload } from '../../stores/billStore'
 import type { BillSource, BillVideo } from '../../types/bill'
 import type { Category } from '../../types/category'
 import { resolveBillImageSrc, resolveBillVideoSrc } from '../../utils/billPresentation'
-import { createTopLevelCategoryGroups, getCategoryDisplayName } from '../../utils/category'
+import { createTopLevelCategoryGroups } from '../../utils/category'
 
 const imageLimit = 6
 const videoLimit = 1
@@ -44,13 +44,7 @@ const topCategoryGroups = computed(() => createTopLevelCategoryGroups(props.cate
 const selectedTopCategory = computed(
   () => topCategoryGroups.value.find((group) => group.category.id === selectedTopCategoryId.value) ?? null,
 )
-const categoryOptions = computed(() => {
-  if (!selectedTopCategory.value) {
-    return []
-  }
-
-  return [selectedTopCategory.value.category, ...selectedTopCategory.value.children]
-})
+const childCategoryOptions = computed(() => selectedTopCategory.value?.children ?? [])
 const sourceOptions: Array<{ label: string; value: BillSource }> = [
   { label: '手动', value: 'manual' },
   { label: '微信', value: 'wechat' },
@@ -249,25 +243,42 @@ async function handleSubmit(): Promise<void> {
 
       <el-form-item label="分类" prop="categoryId">
         <div class="bill-form__category-picker">
-          <div class="bill-form__category-tabs">
-            <el-button
+          <div class="category-scroll-row">
+            <button
               v-for="group in topCategoryGroups"
               :key="group.category.id"
-              plain
-              :class="{ 'is-active': selectedTopCategoryId === group.category.id }"
+              type="button"
+              class="category-pill"
+              :class="{ 'is-active': selectedTopCategoryId === group.category.id, 'is-selected': form.categoryId === group.category.id }"
               @click="selectTopCategory(group.category.id)"
             >
-              {{ group.category.icon }} {{ group.category.name }}
-            </el-button>
+              <span class="category-pill__icon">{{ group.category.icon }}</span>
+              <span>{{ group.category.name }}</span>
+            </button>
           </div>
-          <el-select v-model="form.categoryId" placeholder="选择分类" filterable>
-            <el-option
-              v-for="option in categoryOptions"
-              :key="option.id"
-              :label="getCategoryDisplayName(option, props.categories)"
-              :value="option.id"
-            />
-          </el-select>
+          <div class="category-scroll-row category-scroll-row--secondary">
+            <button
+              type="button"
+              class="category-pill category-pill--secondary"
+              :class="{ 'is-active': form.categoryId === selectedTopCategory?.category.id }"
+              :disabled="!selectedTopCategory"
+              @click="selectedTopCategory && (form.categoryId = selectedTopCategory.category.id)"
+            >
+              <span class="category-pill__icon">{{ selectedTopCategory?.category.icon ?? '🧾' }}</span>
+              <span>{{ selectedTopCategory?.category.name ?? '请选择一级分类' }}</span>
+            </button>
+            <button
+              v-for="child in childCategoryOptions"
+              :key="child.id"
+              type="button"
+              class="category-pill category-pill--secondary"
+              :class="{ 'is-active': form.categoryId === child.id }"
+              @click="form.categoryId = child.id"
+            >
+              <span class="category-pill__icon">{{ child.icon }}</span>
+              <span>{{ child.name }}</span>
+            </button>
+          </div>
         </div>
       </el-form-item>
 
