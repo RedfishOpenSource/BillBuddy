@@ -2,6 +2,7 @@ import vue from '@vitejs/plugin-vue'
 import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 import { defineConfig } from 'vitest/config'
+import { fileURLToPath, URL } from 'node:url'
 
 function getManualChunkName(id: string): string | undefined {
   if (id.includes('node_modules/vue-echarts')) {
@@ -36,6 +37,11 @@ function getManualChunkName(id: string): string | undefined {
 }
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
+  },
   plugins: [
     vue(),
     Components({

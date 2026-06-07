@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import type { Bill } from '../../types/bill'
 import type { Category } from '../../types/category'
 import { getCategoryDisplayName } from '../../utils/category'
-import { formatCurrency, formatDate, formatSourceLabel } from '../../utils/format'
+import { formatCurrency, formatDate, formatSourceLabel, formatTransactionKindLabel } from '../../utils/format'
 import { getBillDisplayTitle } from '../../utils/billPresentation'
 
 const props = defineProps<{
@@ -13,7 +13,7 @@ const props = defineProps<{
   clickable?: boolean
 }>()
 
-const amountClass = computed(() => (props.category?.type === 'income' ? 'is-income' : 'is-expense'))
+const amountClass = computed(() => (props.bill.transactionKind === 'income' ? 'is-income' : 'is-expense'))
 const displayTitle = computed(() => getBillDisplayTitle(props.bill, props.category))
 const categoryLabel = computed(() => {
   if (!props.category) {
@@ -34,9 +34,9 @@ const categoryLabel = computed(() => {
         <div>
           <h3>{{ displayTitle }}</h3>
           <div class="bill-card__labels">
+            <el-tag size="small" effect="plain">{{ formatTransactionKindLabel(bill.transactionKind) }}</el-tag>
             <el-tag size="small" effect="plain">{{ categoryLabel }}</el-tag>
             <el-tag size="small" type="info" effect="plain">{{ formatSourceLabel(bill.source) }}</el-tag>
-            <el-tag v-if="bill.images.length" size="small" type="success" effect="plain">{{ bill.images.length }} 张图片</el-tag>
           </div>
         </div>
         <strong class="bill-card__amount" :class="amountClass">{{ formatCurrency(bill.amount) }}</strong>

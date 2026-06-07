@@ -1,18 +1,17 @@
 import dayjs from 'dayjs'
 import { defineStore } from 'pinia'
 import { createBill, findBill, listBills, removeBill, upsertBill } from '../services/db/billRepository'
-import type { Bill, BillImage, BillSource, BillStatus, BillVideo } from '../types/bill'
+import type { Bill, BillSource, BillStatus, TransactionKind } from '../types/bill'
 
 export interface BillFormPayload {
   id?: string
   source: BillSource
+  transactionKind: TransactionKind
   categoryId: string
-  amount: number
+  amount?: number
   purpose?: string
   billNo: string
   description: string
-  images: BillImage[]
-  videos?: BillVideo[]
   billDate: string
   rawText?: string
   status?: BillStatus
@@ -23,8 +22,6 @@ function buildUpdatedBill(existing: Bill, payload: BillFormPayload): Bill {
     ...existing,
     ...payload,
     amount: Number(payload.amount),
-    images: payload.images ?? [],
-    videos: payload.videos ?? [],
     updatedAt: new Date().toISOString(),
     status: payload.status ?? existing.status,
   }
@@ -47,21 +44,24 @@ export const useBillStore = defineStore('bills', {
 
       const bill = existing
         ? buildUpdatedBill(existing, payload)
-          : createBill({
-              source: payload.source,
-              categoryId: payload.categoryId,
-              amount: Number(payload.amount),
-              purpose: payload.purpose,
-              billNo: payload.billNo,
-              description: payload.description,
-            images: payload.images ?? [],
-            videos: payload.videos ?? [],
-            billDate: payload.billDate || dayjs().format('YYYY-MM-DD'),
+        : createBill({
+            source: payload.source,
+            transactionKind: payload.transactionKind,
+            categoryId: payload.categoryId,
+            amount: Number(payload.amount),
+            purpose: payload.purpose,
+            billNo: payload.billNo,
+            description: payload.description,
+            billDate: payload.billDate || dayjs().format('YYYY-MM-DD HH:mm'),
             rawText: payload.rawText,
           })
 
       this.bills = upsertBill(bill)
       return bill
+    },
+    saveBills(payloads: BillFormPayload[]) {
+      const bills = payloads.map((payload) => this.saveBill(payload))
+      return bills
     },
     deleteBill(billId: string) {
       this.bills = removeBill(billId)
@@ -73,46 +73,42 @@ export const useBillStore = defineStore('bills', {
 
       const samples: BillFormPayload[] = [
         {
-          source: 'manual',
+          source: 'bankCard',
+          transactionKind: 'expense',
           categoryId: 'food',
           amount: 32,
           billNo: '手动-001',
           description: '午餐套餐 · 公司附近简餐',
-          images: [],
-          videos: [],
-          billDate: dayjs().format('YYYY-MM-DD'),
+          billDate: dayjs().format('YYYY-MM-DD HH:mm'),
         },
         {
           source: 'wechat',
+          transactionKind: 'expense',
           categoryId: 'transport',
           amount: 6,
           billNo: '微信-20260512-01',
           description: '地铁出行 · 通勤',
-          images: [],
-          videos: [],
-          billDate: dayjs().subtract(1, 'day').format('YYYY-MM-DD'),
+          billDate: dayjs().subtract(1, 'day').format('YYYY-MM-DD HH:mm'),
           rawText: '微信支付 地铁出行 ￥6.00',
         },
         {
           source: 'alipay',
+          transactionKind: 'expense',
           categoryId: 'shopping',
           amount: 88.6,
           billNo: '支出-20260510-03',
           description: '日用品采购 · 洗发水和纸巾',
-          images: [],
-          videos: [],
-          billDate: dayjs().subtract(2, 'day').format('YYYY-MM-DD'),
+          billDate: dayjs().subtract(2, 'day').format('YYYY-MM-DD HH:mm'),
           rawText: '支付宝支出 ￥88.60',
         },
         {
-          source: 'manual',
+          source: 'bankCard',
+          transactionKind: 'income',
           categoryId: 'salary',
           amount: 12800,
           billNo: '工资-202605',
           description: '5月工资入账',
-          images: [],
-          videos: [],
-          billDate: dayjs().startOf('month').format('YYYY-MM-DD'),
+          billDate: dayjs().startOf('month').format('YYYY-MM-DD HH:mm'),
         },
       ]
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowDown, Operation, Search, Setting, Share } from '@element-plus/icons-vue'
+import { ArrowDown, Operation, Search, Share } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus'
 import { computed, ref } from 'vue'
@@ -20,7 +20,6 @@ import { shareFile } from '../services/native/shareBridge'
 import { useBillStore } from '../stores/billStore'
 import { useCategoryStore } from '../stores/categoryStore'
 import type { BillFilters, BillSort } from '../types/bill'
-import { createTopLevelCategoryGroups, getCategoryDisplayName } from '../utils/category'
 
 const router = useRouter()
 const billStore = useBillStore()
@@ -28,9 +27,7 @@ const categoryStore = useCategoryStore()
 const appliedFilters = ref(createEmptyFilters())
 const draftFilters = ref(createEmptyFilters())
 const filterDrawerVisible = ref(false)
-const categoryDrawerVisible = ref(false)
 const sharing = ref(false)
-const quickTopCategoryId = ref('')
 const visibleBills = computed(() =>
   sortBills(
     filterBills(billStore.bills, appliedFilters.value, categoryStore.sortedCategories),
@@ -41,20 +38,22 @@ const visibleBills = computed(() =>
 const activeFilterCount = computed(() => {
   return [
     appliedFilters.value.keyword,
-    appliedFilters.value.categoryId,
+    appliedFilters.value.transactionKind,
     appliedFilters.value.startDate,
     appliedFilters.value.endDate,
   ].filter(Boolean).length
 })
 
-const quickCategoryGroups = computed(() => createTopLevelCategoryGroups(categoryStore.sortedCategories))
-const selectedQuickTopCategory = computed(
-  () => quickCategoryGroups.value.find((group) => group.category.id === quickTopCategoryId.value) ?? null,
-)
-const quickChildCategories = computed(() => selectedQuickTopCategory.value?.children ?? [])
+const transactionKindOptions = [
+  { label: '全部交易类型', value: '' },
+  { label: '支出', value: 'expense' },
+  { label: '负债消费', value: 'debt_expense' },
+  { label: '收入', value: 'income' },
+  { label: '还债', value: 'repayment' },
+]
 
 const selectedCategoryLabel = computed(() =>
-  getCategoryDisplayName(appliedFilters.value.categoryId, categoryStore.sortedCategories) || '账单类别',
+  transactionKindOptions.find((option) => option.value === appliedFilters.value.transactionKind)?.label || '交易类型',
 )
 
 const selectedSortLabel = computed(() => {
@@ -113,35 +112,13 @@ function resetFilters(): void {
   syncDraftFilters()
 }
 
-function ensureQuickCategorySelection(): void {
-  const groups = quickCategoryGroups.value
-
-  if (!groups.length) {
-    quickTopCategoryId.value = ''
-    return
-  }
-
-  if (!groups.some((group) => group.category.id === quickTopCategoryId.value)) {
-    quickTopCategoryId.value = groups[0].category.id
-  }
-}
-
 function openFilterDrawer(): void {
   syncDraftFilters()
   filterDrawerVisible.value = true
 }
 
-function openCategoryDrawer(): void {
-  ensureQuickCategorySelection()
-  categoryDrawerVisible.value = true
-}
-
 function openBillDetail(billId: string): void {
   void router.push(`/bill/${billId}`)
-}
-
-function openSettingsPage(): void {
-  void router.push('/settings')
 }
 
 function closeFilterDrawer(): void {
@@ -154,13 +131,12 @@ function applyFilterDrawer(): void {
   filterDrawerVisible.value = false
 }
 
-function applyQuickCategory(categoryId = ''): void {
-  appliedFilters.value.categoryId = categoryId
-  categoryDrawerVisible.value = false
+function applyQuickCategory(transactionKind = ''): void {
+  appliedFilters.value.transactionKind = transactionKind
 }
 
-function selectQuickTopCategory(categoryId: string): void {
-  quickTopCategoryId.value = categoryId
+function handleTransactionKindCommand(command: string | number): void {
+  applyQuickCategory(String(command))
 }
 
 function handleSortCommand(command: string | number): void {
@@ -244,14 +220,6 @@ async function handleShare(): Promise<void> {
   <section class="screen">
     <div class="bill-search-panel">
       <div class="bill-search-strip">
-        <el-button
-          class="toolbar-icon-button bill-search-strip__settings"
-          text
-          aria-label="打开设置"
-          @click="openSettingsPage"
-        >
-          <el-icon><Setting /></el-icon>
-        </el-button>
         <el-input
           v-model="appliedFilters.keyword"
           :prefix-icon="Search"
@@ -270,15 +238,27 @@ async function handleShare(): Promise<void> {
       </div>
 
       <div class="bill-quick-filter-bar">
-        <el-button
-          class="bill-quick-filter-chip bill-quick-filter-chip--action"
-          plain
-          :class="{ 'is-active': !!appliedFilters.categoryId }"
-          @click="openCategoryDrawer"
-        >
-          <span>{{ selectedCategoryLabel }}</span>
-          <el-icon class="bill-quick-filter-chip__icon"><ArrowDown /></el-icon>
-        </el-button>
+        <el-dropdown @command="handleTransactionKindCommand">
+          <button
+            type="button"
+            class="bill-quick-filter-chip bill-quick-filter-chip--action"
+            :class="{ 'is-active': !!appliedFilters.transactionKind }"
+          >
+            <span>{{ selectedCategoryLabel }}</span>
+            <el-icon class="bill-quick-filter-chip__icon"><ArrowDown /></el-icon>
+          </button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item
+                v-for="option in transactionKindOptions"
+                :key="option.value || 'all'"
+                :command="option.value"
+              >
+                {{ option.label }}
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
 
         <el-dropdown @command="handleDateCommand">
           <button
@@ -345,66 +325,6 @@ async function handleShare(): Promise<void> {
     <el-empty v-else description="当前筛选条件下没有账单。" />
 
     <el-drawer
-      v-model="categoryDrawerVisible"
-      title="账单类别"
-      direction="btt"
-      size="auto"
-      append-to-body
-    >
-      <div class="action-sheet bill-category-sheet">
-        <div class="action-sheet__header">
-          <span class="eyebrow">快捷筛选</span>
-          <h3>选择账单类别</h3>
-        </div>
-        <div class="category-scroll-row">
-          <button
-            v-for="group in quickCategoryGroups"
-            :key="group.category.id"
-            type="button"
-            class="category-pill"
-            :class="{ 'is-active': selectedQuickTopCategory?.category.id === group.category.id, 'is-selected': appliedFilters.categoryId === group.category.id }"
-            @click="selectQuickTopCategory(group.category.id)"
-          >
-            <span class="category-pill__icon">{{ group.category.icon }}</span>
-            <span>{{ group.category.name }}</span>
-          </button>
-        </div>
-        <div class="category-scroll-row category-scroll-row--secondary">
-          <button
-            type="button"
-            class="category-pill category-pill--secondary"
-            :class="{ 'is-active': !appliedFilters.categoryId }"
-            @click="applyQuickCategory('')"
-          >
-            <span class="category-pill__icon">📂</span>
-            <span>全部类别</span>
-          </button>
-          <button
-            v-if="selectedQuickTopCategory"
-            type="button"
-            class="category-pill category-pill--secondary"
-            :class="{ 'is-active': appliedFilters.categoryId === selectedQuickTopCategory.category.id }"
-            @click="applyQuickCategory(selectedQuickTopCategory.category.id)"
-          >
-            <span class="category-pill__icon">{{ selectedQuickTopCategory.category.icon }}</span>
-            <span>{{ selectedQuickTopCategory.category.name }}</span>
-          </button>
-          <button
-            v-for="child in quickChildCategories"
-            :key="child.id"
-            type="button"
-            class="category-pill category-pill--secondary"
-            :class="{ 'is-active': appliedFilters.categoryId === child.id }"
-            @click="applyQuickCategory(child.id)"
-          >
-            <span class="category-pill__icon">{{ child.icon }}</span>
-            <span>{{ child.name }}</span>
-          </button>
-        </div>
-      </div>
-    </el-drawer>
-
-    <el-drawer
       v-model="filterDrawerVisible"
       title="筛选条件"
       direction="rtl"
@@ -413,7 +333,7 @@ async function handleShare(): Promise<void> {
       @closed="syncDraftFilters"
     >
       <div class="bill-filter-drawer">
-        <BillFilterBar v-model="draftFilters" :categories="categoryStore.sortedCategories" plain />
+        <BillFilterBar v-model="draftFilters" plain />
         <div class="bill-filter-drawer__footer">
           <el-button @click="closeFilterDrawer">取消</el-button>
           <el-button type="primary" @click="applyFilterDrawer">确认</el-button>

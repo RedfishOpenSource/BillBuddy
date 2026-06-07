@@ -4,7 +4,7 @@ import { createBackupPayload, applyBackupPayload, parseBackupPayload } from '../
 import { listBills, saveBills } from '../services/db/billRepository'
 import { saveCategories } from '../services/db/categoryRepository'
 import { listIngestRecords, saveIngestRecords } from '../services/db/ingestRepository'
-import type { Bill, BillImage } from '../types/bill'
+import type { Bill } from '../types/bill'
 import type { IngestRecord } from '../types/ingest'
 
 const createdAt = '2026-05-14T09:00:00.000Z'
@@ -12,23 +12,14 @@ const receivedAt = '2026-05-14T09:05:00.000Z'
 const billDate = '2026-05-14'
 const exportedAt = '2026-05-14T09:10:00.000Z'
 
-const testImage: BillImage = {
-  id: 'image-1',
-  path: 'data:image/png;base64,ZmFrZQ==',
-  name: '小票.png',
-  mimeType: 'image/png',
-  size: 128,
-  createdAt,
-}
-
 const testBill: Bill = {
   id: 'bill-1',
-  source: 'manual',
+  source: 'bankCard',
+  transactionKind: 'expense',
   categoryId: 'food',
   amount: 32.5,
   billNo: '手动-001',
   description: '午餐套餐',
-  images: [testImage],
   billDate,
   rawText: '',
   status: 'confirmed',
@@ -46,11 +37,11 @@ const testIngestRecord: IngestRecord = {
   matchedBillId: '',
   draft: {
     source: 'wechat',
+    transactionKind: 'expense',
     categoryId: 'food',
     amount: 32.5,
     billNo: '微信-001',
     description: '午餐套餐',
-    images: [testImage],
     billDate,
     rawText: '微信支付 午餐套餐 ￥32.50',
     confidence: 0.92,
@@ -66,7 +57,7 @@ describe('backupService', () => {
     saveCategories(defaultCategories)
   })
 
-  it('exports bills and ingest draft images into backup payload', async () => {
+  it('exports bills and ingest drafts into backup payload', async () => {
     saveBills([testBill])
     saveIngestRecords([testIngestRecord])
 
@@ -74,12 +65,12 @@ describe('backupService', () => {
 
     expect(payload.schemaVersion).toBe(2)
     expect(payload.bills).toHaveLength(1)
-    expect(payload.bills[0].images).toEqual([testImage])
+    expect(payload.bills[0].billNo).toBe('手动-001')
     expect(payload.ingestRecords).toHaveLength(1)
-    expect(payload.ingestRecords[0].draft?.images).toEqual([testImage])
+    expect(payload.ingestRecords[0].draft?.billNo).toBe('微信-001')
   })
 
-  it('restores images from backup payload after parse and apply', () => {
+  it('restores bills and ingest drafts from backup payload after parse and apply', () => {
     const payload = parseBackupPayload(
       JSON.stringify({
         schemaVersion: 2,
@@ -96,8 +87,8 @@ describe('backupService', () => {
     const restoredIngestRecords = listIngestRecords()
 
     expect(restoredBills).toHaveLength(1)
-    expect(restoredBills[0].images).toEqual([testImage])
+    expect(restoredBills[0].billNo).toBe('手动-001')
     expect(restoredIngestRecords).toHaveLength(1)
-    expect(restoredIngestRecords[0].draft?.images).toEqual([testImage])
+    expect(restoredIngestRecords[0].draft?.billNo).toBe('微信-001')
   })
 })

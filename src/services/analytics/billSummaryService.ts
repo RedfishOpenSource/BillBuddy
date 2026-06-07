@@ -1,22 +1,22 @@
 import dayjs from 'dayjs'
 import type { Bill, BillFilters, BillSort } from '../../types/bill'
 import type { Category } from '../../types/category'
-import { getCategoryDescendantIds, getCategoryDisplayName } from '../../utils/category'
+import { getCategoryDisplayName } from '../../utils/category'
 
 export interface SummaryMetrics {
   income: number
   expense: number
+  debtExpense: number
+  repayment: number
   net: number
   count: number
 }
 
-export interface CategorySummaryItem {
-  categoryId: string
-  name: string
-  type: Category['type']
-  color: string
+export interface TransactionSummaryItem {
+  key: 'income' | 'expense' | 'debt_expense' | 'repayment'
+  label: string
   amount: number
-  count: number
+  color: string
 }
 
 export interface TrendPoint {
@@ -27,7 +27,7 @@ export interface TrendPoint {
 
 export function createEmptyFilters(): BillFilters {
   return {
-    categoryId: '',
+    transactionKind: '',
     keyword: '',
     startDate: '',
     endDate: '',
@@ -38,12 +38,9 @@ export function createEmptyFilters(): BillFilters {
 export function filterBills(bills: Bill[], filters: BillFilters, categories: Category[] = []): Bill[] {
   const keyword = filters.keyword.trim().toLowerCase()
   const categoryNameMap = new Map(categories.map((item) => [item.id, getCategoryDisplayName(item, categories)]))
-  const selectedCategoryIds = filters.categoryId
-    ? new Set(getCategoryDescendantIds(filters.categoryId, categories))
-    : null
 
   return bills.filter((bill) => {
-    if (selectedCategoryIds && !selectedCategoryIds.has(bill.categoryId)) return false
+    if (filters.transactionKind && bill.transactionKind !== filters.transactionKind) return false
     if (filters.startDate && dayjs(bill.billDate).isBefore(dayjs(filters.startDate), 'day')) return false
     if (filters.endDate && dayjs(bill.billDate).isAfter(dayjs(filters.endDate), 'day')) return false
 
@@ -84,26 +81,44 @@ export function sortBills(bills: Bill[], sortBy: BillSort): Bill[] {
   return sorted.sort((left, right) => dayjs(right.billDate).valueOf() - dayjs(left.billDate).valueOf())
 }
 
-export function summarizeBills(bills: Bill[], categories: Category[]): SummaryMetrics {
-  const categoryMap = new Map(categories.map((item) => [item.id, item]))
+export function summarizeBills(bills: Bill[]): SummaryMetrics {
   const summary = bills.reduce<SummaryMetrics>(
     (currentSummary, bill) => {
-      const type = categoryMap.get(bill.categoryId)?.type ?? 'expense'
-
-      if (type === 'income') {
+      if (bill.transactionKind === 'income') {
         currentSummary.income += bill.amount
-      } else {
+      }
+
+      if (bill.transactionKind === 'expense') {
         currentSummary.expense += bill.amount
+      }
+
+      if (bill.transactionKind === 'debt_expense') {
+        currentSummary.debtExpense += bill.amount
+      }
+
+      if (bill.transactionKind === 'repayment') {
+        currentSummary.repayment += bill.amount
       }
 
       currentSummary.count += 1
       return currentSummary
     },
-    { income: 0, expense: 0, net: 0, count: 0 },
+    { income: 0, expense: 0, debtExpense: 0, repayment: 0, net: 0, count: 0 },
   )
 
-  summary.net = summary.income - summary.expense
+  summary.net = summary.income - summary.expense -summary.debtExpense
   return summary
+}
+
+export function buildTransactionSummary(bills: Bill[]): TransactionSummaryItem[] {
+  const summary = summarizeBills(bills)
+
+  return [
+    { key: 'income', label: '收入', amount: summary.income, color: '#67c23a' },
+    { key: 'expense', label: '支出', amount: summary.expense, color: '#f56c6c' },
+    { key: 'debt_expense', label: '负债消费', amount: summary.debtExpense, color: '#e6a23c' },
+    { key: 'repayment', label: '还债', amount: summary.repayment, color: '#409eff' },
+  ]
 }
 
 export function getMonthBills(bills: Bill[], year: number, month: number): Bill[] {
@@ -115,86 +130,6 @@ export function getMonthBills(bills: Bill[], year: number, month: number): Bill[
 
 export function getYearBills(bills: Bill[], year: number): Bill[] {
   return bills.filter((bill) => dayjs(bill.billDate).year() === year)
-}
-
-export function buildCategorySummary(bills: Bill[], categories: Category[]): CategorySummaryItem[] {
-  const categoryMap = new Map(categories.map((item) => [item.id, item]))
-  const bucket = new Map<string, CategorySummaryItem>()
-
-  bills.forEach((bill) => {
-    const category = categoryMap.get(bill.categoryId)
-
-    if (!category) return
-
-    const current = bucket.get(category.id) ?? {
-      categoryId: category.id,
-      name: getCategoryDisplayName(category, categories),
-      type: category.type,
-      color: category.color,
-      amount: 0,
-      count: 0,
-    }
-
-    current.amount += bill.amount
-    current.count += 1
-    bucket.set(category.id, current)
-  })
-
-  return [...bucket.values()].sort((left, right) => right.amount - left.amount)
-}
-
-function summarizeTrendBucket(bills: Bill[], categoryMap: Map<string, Category>): Pick<TrendPoint, 'income' | 'expense'> {
-  return bills.reduce(
-    (summary, bill) => {
-      const type = categoryMap.get(bill.categoryId)?.type ?? 'expense'
-
-      if (type === 'income') {
-        summary.income += bill.amount
-      }
-
-      if (type === 'expense') {
-        summary.expense += bill.amount
-      }
-
-      return summary
-    },
-    { income: 0, expense: 0 },
-  )
-}
-
-export function buildYearlyTrend(bills: Bill[], categories: Category[], year: number): TrendPoint[] {
-  const months = Array.from({ length: 12 }, (_, index) => index + 1)
-  const categoryMap = new Map(categories.map((item) => [item.id, item]))
-
-  return months.map<TrendPoint>((month) => {
-    const monthBills = getMonthBills(bills, year, month)
-    const { income, expense } = summarizeTrendBucket(monthBills, categoryMap)
-
-    return {
-      label: `${month}月`,
-      income,
-      expense,
-    }
-  })
-}
-
-export function buildMonthlyTrend(bills: Bill[], categories: Category[], year: number, month: number): TrendPoint[] {
-  const monthStart = dayjs(`${year}-${String(month).padStart(2, '0')}-01`)
-  const daysInMonth = monthStart.daysInMonth()
-  const monthBills = getMonthBills(bills, year, month)
-  const categoryMap = new Map(categories.map((item) => [item.id, item]))
-
-  return Array.from({ length: daysInMonth }, (_, index) => {
-    const day = index + 1
-    const dayBills = monthBills.filter((bill) => dayjs(bill.billDate).date() === day)
-    const { income, expense } = summarizeTrendBucket(dayBills, categoryMap)
-
-    return {
-      label: `${day}日`,
-      income,
-      expense,
-    }
-  })
 }
 
 export function getAvailableYears(bills: Bill[]): number[] {

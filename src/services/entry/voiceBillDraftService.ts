@@ -47,14 +47,12 @@ export function buildVoiceBillDraft(text: string, categories: Category[]): Pendi
 
   return {
     mode: 'ai',
-    source: 'manual',
+    source: 'bankCard',
     categoryId: inferCategoryId(normalizedText, categories),
     amount,
     billNo: extractBillNo(normalizedText),
     description: inferBillSummary(normalizedText, '语音录入账单'),
     billDate: extractBillDate(normalizedText, dayjs().toISOString()),
     rawText: normalizedText,
-    images: [],
-    videos: [],
   }
 }

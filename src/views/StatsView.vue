@@ -5,9 +5,7 @@ import dayjs from 'dayjs'
 import { computed, defineAsyncComponent, ref } from 'vue'
 import MonthlySummaryCard from '../components/stats/MonthlySummaryCard.vue'
 import {
-  buildCategorySummary,
-  buildMonthlyTrend,
-  buildYearlyTrend,
+  buildTransactionSummary,
   getMonthBills,
   getYearBills,
   summarizeBills,
@@ -15,14 +13,11 @@ import {
 import { downloadPreparedShareFile, getShareResultMessage, prepareStatsShareFile } from '../services/analytics/shareReportService'
 import { shareFile } from '../services/native/shareBridge'
 import { useBillStore } from '../stores/billStore'
-import { useCategoryStore } from '../stores/categoryStore'
 import { formatMonthLabel } from '../utils/format'
 
-const YearlyTrendChart = defineAsyncComponent(() => import('../components/stats/YearlyTrendChart.vue'))
-const CategorySummaryChart = defineAsyncComponent(() => import('../components/stats/CategorySummaryChart.vue'))
+const TransactionSummaryChart = defineAsyncComponent(() => import('../components/stats/TransactionSummaryChart.vue'))
 
 const billStore = useBillStore()
-const categoryStore = useCategoryStore()
 const allMonthsValue = 0
 const currentYear = dayjs().year()
 const sharing = ref(false)
@@ -41,22 +36,8 @@ const scopedBills = computed(() => {
   return getMonthBills(billStore.bills, selectedYear.value, effectiveMonth.value)
 })
 
-const summary = computed(() => summarizeBills(scopedBills.value, categoryStore.sortedCategories))
-const categorySummary = computed(() => {
-  if (isYearView.value) {
-    return []
-  }
-
-  return buildCategorySummary(scopedBills.value, categoryStore.sortedCategories)
-})
-
-const trend = computed(() => {
-  if (isYearView.value) {
-    return buildYearlyTrend(billStore.bills, categoryStore.sortedCategories, selectedYear.value)
-  }
-
-  return buildMonthlyTrend(billStore.bills, categoryStore.sortedCategories, selectedYear.value, effectiveMonth.value)
-})
+const summary = computed(() => summarizeBills(scopedBills.value))
+const transactionSummary = computed(() => buildTransactionSummary(scopedBills.value))
 
 const summaryLabel = computed(() => {
   if (isYearView.value) {
@@ -65,9 +46,6 @@ const summaryLabel = computed(() => {
 
   return formatMonthLabel(selectedYear.value, effectiveMonth.value)
 })
-
-const trendEyebrow = computed(() => (isYearView.value ? '年度视图' : '月度视图'))
-const trendTitle = computed(() => (isYearView.value ? '月度趋势' : '每日趋势'))
 
 function openShareDialog(): void {
   void handleShare()
@@ -83,9 +61,9 @@ async function handleShare(): Promise<void> {
       title: '统计汇总',
       summaryLabel: summaryLabel.value,
       summary: summary.value,
-      trendTitle: trendTitle.value,
-      trend: trend.value,
-      categorySummary: categorySummary.value,
+      trendTitle: '交易类型占比',
+      trend: [],
+      categorySummary: [],
     })
 
     let shared = null
@@ -138,9 +116,6 @@ async function handleShare(): Promise<void> {
     </div>
 
     <MonthlySummaryCard :label="summaryLabel" :summary="summary" />
-    <YearlyTrendChart :points="trend" :eyebrow="trendEyebrow" :title="trendTitle" />
-    <CategorySummaryChart v-if="!isYearView" :items="categorySummary" />
-
-
+    <TransactionSummaryChart :items="transactionSummary" />
   </section>
 </template>

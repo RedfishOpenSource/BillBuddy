@@ -7,7 +7,8 @@ import { getBillDisplayTitle } from '../utils/billPresentation'
 describe('bill purpose compatibility', () => {
   it('prefers purpose over description when building titles', () => {
     const bill = {
-      source: 'manual',
+      source: 'bankCard',
+      transactionKind: 'expense',
       billDate: '2026-05-27',
       purpose: '午餐套餐',
       description: '公司附近简餐',
@@ -44,14 +45,13 @@ describe('bill purpose compatibility', () => {
     const bills: Bill[] = [
       {
         id: 'bill-salary',
-        source: 'manual',
+        source: 'bankCard',
+        transactionKind: 'income',
         categoryId: 'salary',
         amount: 12800,
         purpose: '5月工资',
         billNo: 'SALARY-202605',
         description: '主业收入',
-        images: [],
-        videos: [],
         billDate: '2026-05-01',
         rawText: '',
         status: 'confirmed',

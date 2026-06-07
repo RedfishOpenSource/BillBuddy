@@ -1,17 +1,16 @@
-import type { BillImage, BillSource, BillVideo } from '../../types/bill'
+import type { BillSource, TransactionKind } from '../../types/bill'
 
-export type NewBillEntryMode = 'text' | 'gallery' | 'camera' | 'video' | 'ai'
+export type NewBillEntryMode = 'text' | 'ai'
 
 export interface PendingNewBillDraft {
   mode: NewBillEntryMode
   source?: BillSource
+  transactionKind?: TransactionKind
   categoryId?: string
   amount?: number
   purpose?: string
   billNo?: string
   description?: string
-  images?: BillImage[]
-  videos?: BillVideo[]
   billDate?: string
   rawText?: string
 }
@@ -21,8 +20,6 @@ let pendingNewBillDraft: PendingNewBillDraft | null = null
 function cloneDraft(draft: PendingNewBillDraft): PendingNewBillDraft {
   return {
     ...draft,
-    images: [...(draft.images ?? [])],
-    videos: [...(draft.videos ?? [])],
   }
 }
 

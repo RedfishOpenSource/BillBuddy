@@ -53,7 +53,7 @@ watch(
 )
 
 function getTodayValue(): string {
-  return dayjs().format('YYYY-MM-DD')
+  return dayjs().format('YYYY-MM-DD HH:mm')
 }
 
 const initialValue = computed<BillFormPayload>(() => {
@@ -61,13 +61,12 @@ const initialValue = computed<BillFormPayload>(() => {
     return {
       id: editingBill.value.id,
       source: editingBill.value.source,
+      transactionKind: editingBill.value.transactionKind,
       categoryId: editingBill.value.categoryId,
       amount: editingBill.value.amount,
       purpose: editingBill.value.purpose,
       billNo: editingBill.value.billNo,
       description: editingBill.value.description,
-      images: [...editingBill.value.images],
-      videos: [...(editingBill.value.videos ?? [])],
       billDate: editingBill.value.billDate,
       rawText: editingBill.value.rawText,
       status: editingBill.value.status,
@@ -77,13 +76,12 @@ const initialValue = computed<BillFormPayload>(() => {
   if (ingestRecord.value?.draft) {
     return {
       source: ingestRecord.value.draft.source,
-      categoryId: ingestRecord.value.draft.categoryId ?? 'other',
-      amount: ingestRecord.value.draft.amount ?? 0,
+      transactionKind: ingestRecord.value.draft.transactionKind ?? 'expense',
+      categoryId: ingestRecord.value.draft.categoryId ?? 'daily',
+      amount: ingestRecord.value.draft.amount,
       purpose: ingestRecord.value.draft.purpose,
       billNo: ingestRecord.value.draft.billNo ?? '',
       description: ingestRecord.value.draft.description ?? '通知草稿账单',
-      images: [...(ingestRecord.value.draft.images ?? [])],
-      videos: [...(ingestRecord.value.draft.videos ?? [])],
       billDate: ingestRecord.value.draft.billDate ?? getTodayValue(),
       rawText: ingestRecord.value.draft.rawText ?? '',
       status: 'draft',
@@ -92,14 +90,13 @@ const initialValue = computed<BillFormPayload>(() => {
 
   if (entryDraft.value) {
     return {
-      source: entryDraft.value.source ?? 'manual',
-      categoryId: entryDraft.value.categoryId ?? 'other',
-      amount: entryDraft.value.amount ?? 0,
+      source: entryDraft.value.source ?? 'bankCard',
+      transactionKind: entryDraft.value.transactionKind ?? 'expense',
+      categoryId: entryDraft.value.categoryId ?? 'daily',
+      amount: entryDraft.value.amount,
       purpose: entryDraft.value.purpose,
       billNo: entryDraft.value.billNo ?? '',
       description: entryDraft.value.description ?? '',
-      images: [...(entryDraft.value.images ?? [])],
-      videos: [...(entryDraft.value.videos ?? [])],
       billDate: entryDraft.value.billDate ?? getTodayValue(),
       rawText: entryDraft.value.rawText ?? '',
       status: 'draft',
@@ -107,13 +104,12 @@ const initialValue = computed<BillFormPayload>(() => {
   }
 
   return {
-    source: 'manual',
-    categoryId: 'other',
-    amount: 0,
+    source: 'bankCard',
+    transactionKind: 'expense',
+    categoryId: 'daily',
+    amount: undefined,
     billNo: '',
     description: '',
-    images: [],
-    videos: [],
     billDate: getTodayValue(),
   }
 })
