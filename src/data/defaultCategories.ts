@@ -27,6 +27,10 @@ export const defaultCategories: Category[] = [
   { id: 'social', name: '人情往来', type: 'expense', icon: '🎁', color: '#ff8e72', sortOrder: 900 },
   { id: 'social-gift', name: '礼金支出', type: 'expense', parentId: 'social', icon: '💝', color: '#ff9c83', sortOrder: 901 },
 
+  { id: 'otherOut', name: '其他支出', type: 'expense', icon: '🎁', color: '#ff8e72', sortOrder: 9100 },
+  { id: 'otherOut-item', name: '其他支出', type: 'expense', parentId: 'otherOut', icon: '💝', color: '#ff9c83', sortOrder: 9101 },
+
+
   { id: 'finance', name: '债务还款', type: 'expense', icon: '💳', color: '#7e8ca7', sortOrder: 1000 },
   { id: 'finance-mortgage', name: '房贷还款', type: 'expense', parentId: 'finance', icon: '🛡️', color: '#7d8ca8', sortOrder: 1002 },
   { id: 'finance-credit', name: '信用还款', type: 'expense', parentId: 'finance', icon: '💰', color: '#6f7f9b', sortOrder: 1003 },
